@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import busReducer from './slices/busSlice';
 import locationReducer from './slices/locationSlice';
+import tripReducer from './slices/tripSlice';
 
 // Create the store with proper configuration
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     auth: authReducer,
     bus: busReducer,
     location: locationReducer,
+    trip: tripReducer,
   },
 });
 

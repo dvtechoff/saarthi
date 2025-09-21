@@ -6,10 +6,8 @@ import { USE_MOCK_API, API_CONFIG } from '../config/api';
 import { Platform } from 'react-native';
 import { store } from '../store';
 
-// Use appropriate URL based on platform
-const API_BASE_URL = Platform.OS === 'android' 
-  ? API_CONFIG.ANDROID_BASE_URL 
-  : API_CONFIG.BASE_URL;
+// Use consistent URL for all platforms
+const API_BASE_URL = API_CONFIG.DEVICE_BASE_URL || API_CONFIG.BASE_URL;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,6 +16,9 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Debug logging
+console.log('API Service initialized with base URL:', API_BASE_URL);
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
@@ -94,6 +95,11 @@ export const apiEndpoints = {
     USE_MOCK_API 
       ? Promise.resolve({ data: { success: true } })
       : api.post('/api/v1/driver/location', data),
+  
+  getActiveTrip: () =>
+    USE_MOCK_API 
+      ? Promise.resolve({ data: null })
+      : api.get('/api/v1/driver/trip/active'),
   
   // Authority endpoints
   getAllBuses: () =>

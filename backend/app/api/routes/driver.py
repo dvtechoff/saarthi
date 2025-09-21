@@ -29,6 +29,15 @@ class TripStopResponse(BaseModel):
     success: bool
     message: str
 
+class ActiveTripResponse(BaseModel):
+    tripId: str
+    routeId: int
+    routeName: str
+    busId: int
+    busNumber: str
+    startTime: str
+    status: str
+
 @router.get("/routes", response_model=List[RouteResponse])
 def get_assigned_routes(
     current_user: User = Depends(get_current_active_user),
@@ -214,3 +223,41 @@ def update_location(
         db.commit()
     
     return {"message": "Location updated successfully"}
+
+@router.get("/trip/active", response_model=ActiveTripResponse)
+def get_active_trip(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get the driver's active trip"""
+    if current_user.role.value != "driver":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Driver role required."
+        )
+    
+    # Find active trip
+    trip = db.query(Trip).filter(
+        Trip.driver_id == current_user.id,
+        Trip.status == "active"
+    ).first()
+    
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active trip found"
+        )
+    
+    # Get route and bus information
+    route = db.query(Route).filter(Route.id == trip.route_id).first()
+    bus = db.query(Bus).filter(Bus.id == trip.bus_id).first()
+    
+    return ActiveTripResponse(
+        tripId=trip.trip_id,
+        routeId=trip.route_id,
+        routeName=route.name if route else "Unknown Route",
+        busId=trip.bus_id,
+        busNumber=bus.bus_number if bus else "Unknown Bus",
+        startTime=trip.start_time.isoformat(),
+        status=trip.status
+    )

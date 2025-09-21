@@ -24,7 +24,7 @@ const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start with loading true to prevent flash
   error: null,
 };
 
@@ -190,12 +190,19 @@ const authSlice = createSlice({
         state.error = action.payload as string;
       })
       // Load stored auth
+      .addCase(loadStoredAuth.pending, (state) => {
+        state.isLoading = true;
+      })
       .addCase(loadStoredAuth.fulfilled, (state, action) => {
+        state.isLoading = false;
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
           state.isAuthenticated = true;
         }
+      })
+      .addCase(loadStoredAuth.rejected, (state) => {
+        state.isLoading = false;
       })
       // Logout
       .addCase(logoutUser.fulfilled, (state) => {

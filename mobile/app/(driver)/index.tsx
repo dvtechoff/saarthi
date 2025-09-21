@@ -18,6 +18,8 @@ import { wsService } from '../../services/websocket';
 import { AppDispatch, RootState } from '../../store';
 import { Route, setRoutes, setSelectedRoute } from '../../store/slices/busSlice';
 import { setCurrentLocation, setPermissionGranted, setTracking } from '../../store/slices/locationSlice';
+import { fetchActiveTrip, startTrip, stopTrip, clearTrip } from '../../store/slices/tripSlice';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,6 +28,7 @@ export default function DriverDashboard() {
   const { currentLocation, isTracking, permissionGranted } = useSelector((state: RootState) => state.location);
   const { routes, selectedRoute } = useSelector((state: RootState) => state.bus);
   const { user } = useSelector((state: RootState) => state.auth);
+  const { activeTrip, isLoading: tripLoading, error: tripError } = useSelector((state: RootState) => state.trip);
   
   const [isLoading, setIsLoading] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
@@ -45,14 +48,24 @@ export default function DriverDashboard() {
   
   // Route tracking state
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
-  const [routeDirections, setRouteDirections] = useState([]);
-  const [nextStop, setNextStop] = useState(null);
+  const [routeDirections, setRouteDirections] = useState<{latitude: number, longitude: number}[]>([]);
+  const [nextStop, setNextStop] = useState<{latitude: number, longitude: number, name: string} | null>(null);
   const [routeProgress, setRouteProgress] = useState(0);
 
   useEffect(() => {
     requestLocationPermission();
     fetchAssignedRoutes();
+    fetchActiveTripOnStartup();
   }, []);
+
+  const fetchActiveTripOnStartup = async () => {
+    try {
+      await dispatch(fetchActiveTrip()).unwrap();
+    } catch (error) {
+      // No active trip found or error - this is normal
+      console.log('No active trip found on startup');
+    }
+  };
 
   useEffect(() => {
     if (permissionGranted && currentLocation) {
@@ -64,6 +77,65 @@ export default function DriverDashboard() {
       });
     }
   }, [permissionGranted, currentLocation]);
+
+  // Handle restored active trip
+  useEffect(() => {
+    if (activeTrip && routes && routes.length > 0) {
+      setTripId(activeTrip.tripId);
+      setDistanceCovered(0);
+      setTimeRemaining(0);
+      setPassengerCount(0);
+      setIsDelayed(false);
+      setCurrentStopIndex(0);
+      setRouteProgress(0);
+      
+      // Find the route and set it as selected
+      const route = routes.find(r => String(r.id) === String(activeTrip.routeId));
+      if (route) {
+        dispatch(setSelectedRoute(route));
+        updateMapRegionForRoute(route);
+        generateRouteDirections(route);
+        if (route.stops && route.stops.length > 0) {
+          setNextStop({
+            latitude: route.stops[0].latitude,
+            longitude: route.stops[0].longitude,
+            name: route.stops[0].name
+          });
+        }
+        
+        // Set tracking state and start location tracking
+        dispatch(setTracking(true));
+        if (!isTracking) {
+          startLocationTracking();
+        }
+      }
+    }
+  }, [activeTrip, routes]);
+
+  // Handle case where active trip exists but routes are loaded later
+  useEffect(() => {
+    if (activeTrip && routes && routes.length > 0 && !selectedRoute) {
+      const route = routes.find(r => String(r.id) === String(activeTrip.routeId));
+      if (route) {
+        dispatch(setSelectedRoute(route));
+        updateMapRegionForRoute(route);
+        generateRouteDirections(route);
+        if (route.stops && route.stops.length > 0) {
+          setNextStop({
+            latitude: route.stops[0].latitude,
+            longitude: route.stops[0].longitude,
+            name: route.stops[0].name
+          });
+        }
+        
+        // Set tracking state and start location tracking
+        dispatch(setTracking(true));
+        if (!isTracking) {
+          startLocationTracking();
+        }
+      }
+    }
+  }, [activeTrip, routes, selectedRoute, isTracking]);
 
   const requestLocationPermission = async () => {
     try {
@@ -107,7 +179,7 @@ export default function DriverDashboard() {
     }
   };
 
-  const startTrip = async () => {
+  const startTripHandler = async () => {
     if (!selectedRoute) {
       Alert.alert('Error', 'Please select a route first');
       return;
@@ -116,54 +188,68 @@ export default function DriverDashboard() {
     try {
       setIsLoading(true);
       console.log('Starting trip for route:', selectedRoute.id);
-      const response = await apiEndpoints.startTrip(selectedRoute.id);
-      console.log('Start trip response:', response);
       
-      setTripId(response.data.tripId);
+      const result = await dispatch(startTrip(selectedRoute.id.toString())).unwrap();
+      console.log('Start trip result:', result);
+      
+      // Set trip ID and start tracking
+      setTripId(result.tripId);
       dispatch(setTracking(true));
       
-      // Initialize route tracking
-      setCurrentStopIndex(0);
-      setRouteProgress(0);
-      setNextStop(selectedRoute.stops[0]);
-      
-      // Generate route directions
-      const directions = generateRouteDirections(selectedRoute);
-      setRouteDirections(directions);
-      
-      // Update map to show full route
-      updateMapRegionForRoute(selectedRoute);
+      // Generate route directions for map preview
+      if (selectedRoute) {
+        const directions = generateRouteDirections(selectedRoute);
+        setRouteDirections(directions);
+        if (selectedRoute.stops && selectedRoute.stops.length > 0) {
+          setNextStop({
+            latitude: selectedRoute.stops[0].latitude,
+            longitude: selectedRoute.stops[0].longitude,
+            name: selectedRoute.stops[0].name
+          });
+        }
+        updateMapRegionForRoute(selectedRoute);
+      }
       
       // Start location tracking
       startLocationTracking();
       
-      Alert.alert('Success', `Trip started successfully!\nTrip ID: ${response.data.tripId}\nNext Stop: ${selectedRoute.stops[0]?.name}`);
+      // Fetch the full trip details after starting
+      await dispatch(fetchActiveTrip()).unwrap();
+      
+      Alert.alert('Success', `Trip started successfully!\nTrip ID: ${result.tripId}`);
     } catch (error: any) {
       console.error('Error starting trip:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to start trip';
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to start trip';
       Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const stopTrip = async () => {
+  const stopTripHandler = async () => {
     if (!tripId) return;
 
     try {
       setIsLoading(true);
-      await apiEndpoints.stopTrip(tripId);
+      await dispatch(stopTrip(tripId)).unwrap();
       
       // Stop location tracking
       stopLocationTracking();
       
+      // Clear all trip state
       setTripId(null);
       dispatch(setTracking(false));
+      dispatch(clearTrip());
+      setRouteDirections([]);
+      setNextStop(null);
+      setCurrentStopIndex(0);
+      setRouteProgress(0);
       
       Alert.alert('Success', 'Trip stopped successfully');
     } catch (error: any) {
       console.error('Error stopping trip:', error);
-      Alert.alert('Error', 'Failed to stop trip');
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to stop trip';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -260,6 +346,9 @@ export default function DriverDashboard() {
         });
       }
     }
+    
+    // Set the route directions state
+    setRouteDirections(directions);
     return directions;
   };
 
@@ -288,7 +377,7 @@ export default function DriverDashboard() {
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Update', 
-          onPress: (count) => {
+          onPress: (count?: string) => {
             const numCount = parseInt(count || '0');
             if (!isNaN(numCount)) {
               setPassengerCount(numCount);
@@ -310,7 +399,13 @@ export default function DriverDashboard() {
 
     const nextIndex = currentStopIndex + 1;
     setCurrentStopIndex(nextIndex);
-    setNextStop(selectedRoute.stops[nextIndex + 1]);
+    if (selectedRoute.stops[nextIndex + 1]) {
+      setNextStop({
+        latitude: selectedRoute.stops[nextIndex + 1].latitude,
+        longitude: selectedRoute.stops[nextIndex + 1].longitude,
+        name: selectedRoute.stops[nextIndex + 1].name
+      });
+    }
     setRouteProgress((nextIndex / selectedRoute.stops.length) * 100);
     
     Alert.alert(
@@ -318,6 +413,7 @@ export default function DriverDashboard() {
       `Arrived at ${selectedRoute.stops[currentStopIndex]?.name}\nNext: ${selectedRoute.stops[nextIndex]?.name || 'End of Route'}`
     );
   };
+
 
   return (
     <View style={styles.container}>
@@ -334,10 +430,10 @@ export default function DriverDashboard() {
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>Status</Text>
           <View style={styles.statusIndicator}>
-            <View style={[styles.statusDot, { backgroundColor: isTracking ? '#EC4899' : '#9CA3AF' }]} />
-            <Text style={[styles.statusText, { color: isTracking ? '#EC4899' : '#9CA3AF' }]}>
+            <View style={[styles.statusDot, { backgroundColor: isTracking ? '#25F063' : '#9CA3AF' }]} />
+            <Text style={[styles.statusText, { color: isTracking ? '#25F063' : '#9CA3AF' }]}>
               {isTracking ? 'Active' : 'Inactive'}
-            </Text>
+                  </Text>
           </View>
         </View>
 
@@ -347,10 +443,10 @@ export default function DriverDashboard() {
           <View style={styles.routeInfo}>
             <Text style={styles.routeName}>
               {selectedRoute?.name || 'Route 4A: Downtown to Northside'}
-            </Text>
+                  </Text>
             <TouchableOpacity style={styles.routeChangeButton}>
               <Ionicons name="swap-horizontal" size={20} color="#8B5CF6" />
-            </TouchableOpacity>
+                </TouchableOpacity>
           </View>
         </View>
 
@@ -384,7 +480,7 @@ export default function DriverDashboard() {
                 <Ionicons name="people" size={24} color="#8B5CF6" />
               </View>
               <Text style={styles.actionText}>Passenger Count</Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
             {isTracking && (
               <TouchableOpacity style={styles.actionButton} onPress={moveToNextStop}>
                 <View style={styles.actionIcon}>
@@ -397,7 +493,7 @@ export default function DriverDashboard() {
         </View>
 
         {/* Route Progress Card - Show when trip is active */}
-        {isTracking && selectedRoute && (
+        {(isTracking || activeTrip) && selectedRoute && (
           <View style={styles.routeProgressCard}>
             <Text style={styles.routeProgressTitle}>Route Progress</Text>
             <View style={styles.progressInfo}>
@@ -439,7 +535,7 @@ export default function DriverDashboard() {
         {/* Route Preview Card */}
         <View style={styles.routePreviewCard}>
           <Text style={styles.routePreviewTitle}>
-            {isTracking ? 'Live Route Map' : 'Route Preview'}
+            {(isTracking || activeTrip) ? 'Live Route Map' : 'Route Preview'}
           </Text>
           <View style={styles.mapContainer}>
             <MapView
@@ -451,9 +547,14 @@ export default function DriverDashboard() {
               mapType="standard"
             >
               {/* Route Path - Show complete route with directions */}
-              {isTracking && routeDirections.length > 0 && (
+              {(isTracking || activeTrip) && selectedRoute && (
                 <Polyline
-                  coordinates={routeDirections}
+                  coordinates={routeDirections.length > 0 ? routeDirections : 
+                    selectedRoute.stops?.map(stop => ({
+                      latitude: stop.latitude,
+                      longitude: stop.longitude
+                    })) || []
+                  }
                   strokeColor="#EC4899"
                   strokeWidth={6}
                   lineDashPattern={[5, 5]}
@@ -465,7 +566,7 @@ export default function DriverDashboard() {
                 let markerColor = "#8B5CF6"; // Default color
                 let markerTitle = stop.name;
                 
-                if (isTracking) {
+                if (isTracking || activeTrip) {
                   if (index < currentStopIndex) {
                     markerColor = "#10B981"; // Completed stops - green
                     markerTitle = `✓ ${stop.name}`;
@@ -479,12 +580,12 @@ export default function DriverDashboard() {
                 }
                 
                 return (
-                  <Marker
-                    key={stop.id}
-                    coordinate={{
-                      latitude: stop.latitude,
-                      longitude: stop.longitude,
-                    }}
+                <Marker
+                  key={stop.id}
+                  coordinate={{
+                    latitude: stop.latitude,
+                    longitude: stop.longitude,
+                  }}
                     title={markerTitle}
                     description={`Stop ${index + 1} of ${selectedRoute.stops.length}`}
                     pinColor={markerColor}
@@ -493,7 +594,7 @@ export default function DriverDashboard() {
               })}
               
               {/* Driver's current location */}
-              {isTracking && currentLocation && (
+              {(isTracking || activeTrip) && currentLocation && (
                 <Marker
                   coordinate={{
                     latitude: currentLocation.coords.latitude,
@@ -509,7 +610,7 @@ export default function DriverDashboard() {
               )}
               
               {/* Route progress line from current location to next stop */}
-              {isTracking && currentLocation && nextStop && (
+              {(isTracking || activeTrip) && currentLocation && nextStop && (
                 <Polyline
                   coordinates={[
                     {
@@ -532,10 +633,32 @@ export default function DriverDashboard() {
 
         {/* Trip Controls */}
         <View style={styles.tripControls}>
-          {!isTracking ? (
+          {activeTrip ? (
+            <View style={styles.activeTripInfo}>
+              <Text style={styles.activeTripTitle}>Active Trip</Text>
+              <Text style={styles.activeTripDetails}>
+                Trip ID: {activeTrip.tripId}
+              </Text>
+              <Text style={styles.activeTripDetails}>
+                Route: {activeTrip.routeName}
+            </Text>
+              <Text style={styles.activeTripDetails}>
+                Bus: {activeTrip.busNumber}
+            </Text>
+              <TouchableOpacity
+                style={styles.stopTripButton}
+                onPress={stopTripHandler}
+                disabled={isLoading}
+              >
+                <Text style={styles.stopTripText}>
+                  {isLoading ? 'Stopping...' : 'Stop Trip'}
+            </Text>
+              </TouchableOpacity>
+          </View>
+          ) : !isTracking ? (
             <TouchableOpacity
               style={styles.startTripButton}
-              onPress={startTrip}
+              onPress={startTripHandler}
               disabled={!selectedRoute || isLoading}
             >
               <Text style={styles.startTripText}>
@@ -545,7 +668,7 @@ export default function DriverDashboard() {
           ) : (
             <TouchableOpacity
               style={styles.stopTripButton}
-              onPress={stopTrip}
+              onPress={stopTripHandler}
               disabled={isLoading}
             >
               <Text style={styles.stopTripText}>
@@ -877,20 +1000,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   
-  // Bus Marker
-  busMarker: {
-    backgroundColor: '#8B5CF6',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  // Active Trip Info
+  activeTripInfo: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#0EA5E9',
+  },
+  activeTripTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0C4A6E',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  activeTripDetails: {
+    fontSize: 14,
+    color: '#0C4A6E',
+    marginBottom: 8,
   },
 });
