@@ -1,0 +1,66 @@
+# Root ignores
+.DS_Store
+Thumbs.db
+*.log
+logs/
+.expo/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+backend/.env
+backend/env.production
+
+# Python (backend)
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.ruff_cache/
+backend/.tox/
+backend/logs/
+
+# Alembic artifacts
+backend/alembic/versions/__pycache__/
+backend/alembic/*.pyc
+
+# Node/Expo (mobile)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.metro-health-check*
+mobile/*.tsbuildinfo
+mobile/ios/
+mobile/android/
+
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+*.orig.*
+*.pem
+*.p8
+*.p12
+*.key
+*.jks
+*.mobileprovision
+
+# Docker
+**/ssl/
+**/pgdata/
+**/neo4jdata/
+**/neo4j_data/
+**/neo4j_logs/
+**/redis_data/
+
+# Keep: migrations source files are tracked, only caches ignored
+
+node_modules/
