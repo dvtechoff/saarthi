@@ -200,6 +200,3 @@ gh repo create --source . --private --push
 
 Do not commit real secrets. Keep `.env` files local (they’re ignored by git). The backend reads configuration from `backend/.env` via Pydantic Settings.
 
-## License
-
-MIT (or your chosen license)
