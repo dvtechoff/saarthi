@@ -30,16 +30,9 @@ const initialState: AuthState = {
 
 // Get the correct API URL based on platform
 const getApiUrl = () => {
-  if (Platform.OS === 'android') {
-    // For Android, try emulator first, then device IP
-    return API_CONFIG.ANDROID_BASE_URL;
-  } else if (Platform.OS === 'ios') {
-    // For iOS simulator, use localhost
-    return API_CONFIG.BASE_URL;
-  } else {
-    // For physical devices, use device IP
-    return API_CONFIG.DEVICE_BASE_URL || API_CONFIG.BASE_URL;
-  }
+  // For development, always use the device IP address
+  // This works for both physical devices and emulators
+  return API_CONFIG.DEVICE_BASE_URL || API_CONFIG.BASE_URL;
 };
 
 // Async thunks
@@ -49,6 +42,7 @@ export const loginUser = createAsyncThunk(
     try {
       const apiUrl = getApiUrl();
       console.log('Login API URL:', apiUrl);
+      console.log('Login credentials:', { email: credentials.email, password: '***' });
       
       const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
         method: 'POST',
@@ -58,12 +52,17 @@ export const loginUser = createAsyncThunk(
         body: JSON.stringify(credentials),
       });
       
+      console.log('Login response status:', response.status);
+      console.log('Login response headers:', response.headers);
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+        console.error('Login error response:', errorData);
+        throw new Error(errorData.detail || `Login failed with status ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Login success data:', data);
       const { user, access_token } = data;
       
       setAuthToken(access_token);
@@ -84,6 +83,7 @@ export const registerUser = createAsyncThunk(
     try {
       const apiUrl = getApiUrl();
       console.log('Register API URL:', apiUrl);
+      console.log('Register user data:', { ...userData, password: '***' });
       
       const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: 'POST',
@@ -93,12 +93,16 @@ export const registerUser = createAsyncThunk(
         body: JSON.stringify(userData),
       });
       
+      console.log('Register response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
+        console.error('Register error response:', errorData);
+        throw new Error(errorData.detail || `Registration failed with status ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Register success data:', data);
       const { user, access_token } = data;
       
       setAuthToken(access_token);

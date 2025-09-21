@@ -4,16 +4,16 @@ export const USE_MOCK_API = false;
 
 // Backend URLs
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000',
-  WS_URL: 'ws://localhost:8000',
+  BASE_URL: 'http://192.168.1.37:8000',
+  WS_URL: 'ws://192.168.1.37:8000',
   
   // For Android emulator, use 10.0.2.2 instead of localhost
   ANDROID_BASE_URL: 'http://10.0.2.2:8000',
   ANDROID_WS_URL: 'ws://10.0.2.2:8000',
   
   // For physical device, use your computer's IP address
-  DEVICE_BASE_URL: 'http://localhost:8000',
-  DEVICE_WS_URL: 'ws://localhost:8000',
+  DEVICE_BASE_URL: 'http://192.168.1.37:8000',
+  DEVICE_WS_URL: 'ws://192.168.1.37:8000',
 };
 
 // Mock user credentials for testing
