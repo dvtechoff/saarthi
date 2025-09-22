@@ -88,9 +88,13 @@ export default function DriverDashboard() {
   const fetchAssignedRoutes = async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching assigned routes...');
       const response = await apiEndpoints.getAssignedRoutes();
+      console.log('Routes response:', response);
+      
       // Handle different response structures
       const routes = response.data.routes || response.data || [];
+      console.log('Parsed routes:', routes);
       dispatch(setRoutes(routes));
       
       // Auto-select first route if available

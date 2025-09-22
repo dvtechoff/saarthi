@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=100), nullable=True),
     sa.Column('phone', sa.String(length=20), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -39,7 +39,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_routes_id'), 'routes', ['id'], unique=False)
@@ -69,7 +69,7 @@ def upgrade() -> None:
     sa.Column('heading', sa.Float(), nullable=True),
     sa.Column('occupancy', sa.Enum('LOW', 'MEDIUM', 'HIGH', name='occupancylevel'), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.ForeignKeyConstraint(['route_id'], ['routes.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -84,7 +84,7 @@ def upgrade() -> None:
     sa.Column('bus_id', sa.Integer(), nullable=True),
     sa.Column('route_id', sa.Integer(), nullable=True),
     sa.Column('status', sa.Enum('ACTIVE', 'COMPLETED', 'CANCELLED', name='tripstatus'), nullable=True),
-    sa.Column('start_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('start_time', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.Column('end_time', sa.DateTime(timezone=True), nullable=True),
     sa.Column('distance_traveled', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['bus_id'], ['buses.id'], ),
@@ -102,7 +102,7 @@ def upgrade() -> None:
     sa.Column('bus_id', sa.Integer(), nullable=True),
     sa.Column('occupancy', sa.Enum('LOW', 'MEDIUM', 'HIGH', name='occupancylevel'), nullable=False),
     sa.Column('comment', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.ForeignKeyConstraint(['bus_id'], ['buses.id'], ),
     sa.ForeignKeyConstraint(['commuter_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')

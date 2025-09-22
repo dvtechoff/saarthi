@@ -26,7 +26,9 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    // Connect to WebSocket when authenticated
+    // Temporarily disabled WebSocket connections to prevent errors
+    // TODO: Re-enable when WebSocket server is properly configured
+    /*
     if (isAuthenticated && user) {
       const token = store.getState().auth.token;
       if (token) {
@@ -35,6 +37,7 @@ function RootLayoutNav() {
     } else {
       wsService.disconnect();
     }
+    */
   }, [isAuthenticated, user]);
 
   useEffect(() => {

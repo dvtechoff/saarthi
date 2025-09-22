@@ -4,7 +4,6 @@ import { getAuthToken } from './auth-token';
 import { mockApiEndpoints } from './mockAuth';
 import { USE_MOCK_API, API_CONFIG } from '../config/api';
 import { Platform } from 'react-native';
-import { store } from '../store';
 
 // Use appropriate URL based on platform
 const API_BASE_URL = Platform.OS === 'android' 
@@ -19,12 +18,20 @@ export const api = axios.create({
   },
 });
 
+// Debug logging
+console.log('API Service initialized with base URL:', API_BASE_URL);
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
+    console.log('API Request to:', config.url, 'Token available:', !!token);
+    console.log('Token value:', token ? token.substring(0, 20) + '...' : 'No token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Added Authorization header:', config.headers.Authorization);
+    } else {
+      console.log('No token available, request will be sent without authentication');
     }
     return config;
   },
@@ -35,11 +42,15 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    console.log('API Response:', response.status, response.config.url);
+    return response;
+  },
   (error) => {
+    console.log('API Error:', error.response?.status, error.config?.url, error.message);
     if (error.response?.status === 401) {
-      // Token expired, logout user
-      store.dispatch({ type: 'auth/logoutUser/fulfilled' });
+      // Token expired - let the calling component handle logout
+      console.warn('Authentication token expired');
     }
     return Promise.reject(error);
   }
@@ -75,10 +86,15 @@ export const apiEndpoints = {
       : api.post('/api/v1/commuter/feedback', data),
   
   // Driver endpoints
-  getAssignedRoutes: () =>
-    USE_MOCK_API 
-      ? mockApiEndpoints.getAssignedRoutes()
-      : api.get('/api/v1/driver/routes'),
+  getAssignedRoutes: () => {
+    console.log('getAssignedRoutes called, USE_MOCK_API:', USE_MOCK_API);
+    if (USE_MOCK_API) {
+      return mockApiEndpoints.getAssignedRoutes();
+    } else {
+      console.log('Making API call to:', API_BASE_URL + '/api/routes');
+      return api.get('/api/routes');
+    }
+  },
   
   startTrip: (routeId: string) =>
     USE_MOCK_API 
