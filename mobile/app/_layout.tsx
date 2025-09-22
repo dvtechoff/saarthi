@@ -3,7 +3,6 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 import { Provider, useSelector } from 'react-redux';
 import { wsService } from '../services/websocket';
@@ -14,16 +13,6 @@ import { loadStoredAuth } from '../store/slices/authSlice';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
-
-// Loading screen component
-function LoadingScreen() {
-  return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#8B5CF6" />
-      <Text style={styles.loadingText}>Loading...</Text>
-    </View>
-  );
-}
 
 function RootLayoutNav() {
   const authState = useSelector((state: RootState) => state.auth);
@@ -37,16 +26,11 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    // Connect to WebSocket when authenticated (using polling transport)
+    // Connect to WebSocket when authenticated
     if (isAuthenticated && user) {
       const token = store.getState().auth.token;
       if (token) {
-        try {
-          wsService.connect(token);
-        } catch (error) {
-          console.warn('WebSocket connection failed:', error);
-          // Continue without WebSocket - app will work without real-time updates
-        }
+        wsService.connect(token);
       }
     } else {
       wsService.disconnect();
@@ -55,14 +39,11 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
-    
     const currentRoot = segments[0];
-    
     if (!isAuthenticated) {
       if (currentRoot !== '(auth)') router.replace('/(auth)/login');
       return;
     }
-    
     if (user?.role === 'commuter') {
       if (currentRoot !== '(commuter)') router.replace('/(commuter)');
       return;
@@ -77,17 +58,13 @@ function RootLayoutNav() {
     }
   }, [isAuthenticated, user?.role, isLoading, segments, router]);
 
-  // Show loading screen while checking authentication
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(commuter)" />
       <Stack.Screen name="(driver)" />
       <Stack.Screen name="(authority)" />
+      <Stack.Screen name="debug" />
     </Stack>
   );
 }
@@ -119,21 +96,6 @@ export default function RootLayout() {
     </Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-});
 
 export {
   // Catch any errors thrown by the Layout component.

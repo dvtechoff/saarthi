@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Saarthi",
-    "slug": "saarthi",
+    "slug": "Saarthi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -22,12 +22,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -55,12 +50,7 @@
     },
     "extra": {
       "apiBaseUrl": "http://10.0.2.2:8000",
-      "wsUrl": "ws://10.0.2.2:8000",
-      "router": {},
-      "eas": {
-        "projectId": "e3a19253-0e29-4930-8337-7f8cb061c16a"
-      }
-    },
-    "owner": "verma_coder"
+      "wsUrl": "ws://10.0.2.2:8000"
+    }
   }
 }

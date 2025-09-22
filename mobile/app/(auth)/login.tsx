@@ -132,6 +132,14 @@ export default function LoginScreen() {
             </Link>
           </View>
 
+          {/* Debug Button */}
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={() => router.push('/debug')}
+          >
+            <Text style={styles.debugButtonText}>Debug Network</Text>
+          </TouchableOpacity>
+
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -244,6 +252,18 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 14,
     color: "#8B5CF6",
+    fontWeight: "600",
+  },
+  debugButton: {
+    backgroundColor: "#FF6B6B",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  debugButtonText: {
+    color: "white",
+    fontSize: 14,
     fontWeight: "600",
   },
 });

@@ -6,8 +6,10 @@ import { setCurrentLocation } from '../store/slices/locationSlice';
 import { getAuthToken } from './auth-token';
 import { API_CONFIG } from '../config/api';
 
-// Use consistent WebSocket URL for all platforms
-const WS_URL = API_CONFIG.DEVICE_WS_URL || API_CONFIG.WS_URL;
+// Use appropriate WebSocket URL based on platform
+const WS_URL = Platform.OS === 'android' 
+  ? API_CONFIG.ANDROID_WS_URL 
+  : API_CONFIG.WS_URL;
 
 class WebSocketService {
   private socket: Socket | null = null;
@@ -18,19 +20,11 @@ class WebSocketService {
   connect(token: string) {
     if (this.socket?.connected) return;
 
-    try {
-      this.socket = io(WS_URL, {
-        transports: ['polling'], // Use polling only to avoid protocol issues
-        auth: { token },
-        timeout: 10000,
-        reconnection: false, // Disable automatic reconnection
-        forceNew: true,
-        autoConnect: true,
-      });
-    } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      return;
-    }
+    this.socket = io(WS_URL, {
+      transports: ['websocket'],
+      auth: { token },
+      timeout: 20000,
+    });
 
     this.socket.on('connect', () => {
       console.log('WebSocket connected');
@@ -45,15 +39,13 @@ class WebSocketService {
 
     this.socket.on('disconnect', () => {
       console.log('WebSocket disconnected');
-      // Don't automatically reconnect to prevent error loops
-      // this.handleReconnect();
+      this.handleReconnect();
     });
 
     this.socket.on('connect_error', (error) => {
-      console.warn('WebSocket connection error:', error);
-      // Don't show error to user, just log it
-      // store.dispatch(setError('Connection failed. Retrying...'));
-      // this.handleReconnect();
+      console.error('WebSocket connection error:', error);
+      store.dispatch(setError('Connection failed. Retrying...'));
+      this.handleReconnect();
     });
 
     // Server connection confirmation
