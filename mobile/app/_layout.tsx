@@ -64,7 +64,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(commuter)" />
       <Stack.Screen name="(driver)" />
       <Stack.Screen name="(authority)" />
-      <Stack.Screen name="debug" />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }
