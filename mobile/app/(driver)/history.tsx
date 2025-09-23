@@ -4,10 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { logoutUser } from '../../store/slices/authSlice';
+import { apiEndpoints } from '../../services/api';
 
 export default function DriverProfile() {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
+  const [stats, setStats] = React.useState<{ totalTrips: number; kmDriven: number; passengers: number }>({ totalTrips: 0, kmDriven: 0, passengers: 0 });
+  const [trips, setTrips] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -23,6 +27,25 @@ export default function DriverProfile() {
       ]
     );
   };
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [s, h] = await Promise.all([
+          apiEndpoints.getDriverStats(),
+          apiEndpoints.getDriverTrips(10),
+        ]);
+        setStats(s.data);
+        setTrips(Array.isArray(h.data) ? h.data : (h.data?.trips || []));
+      } catch (e) {
+        // ignore for now
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
@@ -43,17 +66,17 @@ export default function DriverProfile() {
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <Ionicons name="time" size={24} color="#8B5CF6" />
-          <Text style={styles.statValue}>156</Text>
+          <Text style={styles.statValue}>{stats.totalTrips}</Text>
           <Text style={styles.statLabel}>Total Trips</Text>
         </View>
         <View style={styles.statCard}>
           <Ionicons name="speedometer" size={24} color="#8B5CF6" />
-          <Text style={styles.statValue}>2,450</Text>
+          <Text style={styles.statValue}>{Math.round(stats.kmDriven)}</Text>
           <Text style={styles.statLabel}>KM Driven</Text>
         </View>
         <View style={styles.statCard}>
           <Ionicons name="people" size={24} color="#8B5CF6" />
-          <Text style={styles.statValue}>3,240</Text>
+          <Text style={styles.statValue}>{stats.passengers}</Text>
           <Text style={styles.statLabel}>Passengers</Text>
         </View>
       </View>
@@ -84,6 +107,19 @@ export default function DriverProfile() {
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
+
+      {/* Recent Trips Preview */}
+      {trips.length > 0 && (
+        <View style={styles.recentSection}>
+          <Text style={styles.recentTitle}>Recent Trips</Text>
+          {trips.map((t, idx) => (
+            <View key={t.id || idx} style={styles.recentItem}>
+              <Ionicons name="bus-outline" size={20} color="#8B5CF6" />
+              <Text style={styles.recentText}>{t.tripId} • {t.routeName} • {t.status}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Logout Button */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

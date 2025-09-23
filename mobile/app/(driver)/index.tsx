@@ -25,7 +25,7 @@ export default function DriverDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentLocation, isTracking, permissionGranted } = useSelector((state: RootState) => state.location);
   const { routes, selectedRoute } = useSelector((state: RootState) => state.bus);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   
   const [isLoading, setIsLoading] = useState(false);
   const [tripId, setTripId] = useState<string | null>(null);
@@ -53,6 +53,64 @@ export default function DriverDashboard() {
     requestLocationPermission();
     fetchAssignedRoutes();
   }, []);
+
+  // On app open, check backend for any active trip and reflect status
+  useEffect(() => {
+    const checkActiveTrip = async () => {
+      if (!token) return; // wait for token restore
+      try {
+        const resp = await apiEndpoints.getActiveTrip();
+        const active = resp?.data;
+        if (active && active.tripId) {
+          setTripId(active.tripId);
+          dispatch(setTracking(true));
+        } else {
+          setTripId(null);
+          dispatch(setTracking(false));
+        }
+      } catch (error) {
+        setTripId(null);
+        dispatch(setTracking(false));
+      }
+    };
+    checkActiveTrip();
+  }, [dispatch, token]);
+
+  // On mount, check if there is an active trip for this driver
+  useEffect(() => {
+    const restoreActiveTrip = async () => {
+      try {
+        const resp = await apiEndpoints.getActiveTrip();
+        const active = resp?.data;
+        // Expecting shape: { tripId, routeId, status }
+        if (active && active.tripId && active.routeId) {
+          setTripId(active.tripId);
+          dispatch(setTracking(true));
+          // Ensure routes are loaded then select the active route
+          if (routes && routes.length > 0) {
+            const route = routes.find((r: any) => r.id === active.routeId) || routes[0];
+            if (route) {
+              dispatch(setSelectedRoute(route));
+              setCurrentStopIndex(0);
+              setNextStop(route.stops?.[0] || null);
+              setRouteDirections(generateRouteDirections(route));
+              updateMapRegionForRoute(route);
+            }
+          }
+        } else {
+          // No active trip
+          setTripId(null);
+          dispatch(setTracking(false));
+        }
+      } catch (e) {
+        // On error, assume no active trip to avoid false positive UI
+        setTripId(null);
+        dispatch(setTracking(false));
+      }
+    };
+    restoreActiveTrip();
+  // include routes so when they load we can bind route selection
+  }, [dispatch, routes]);
 
   useEffect(() => {
     if (permissionGranted && currentLocation) {
@@ -152,7 +210,10 @@ export default function DriverDashboard() {
   };
 
   const stopTrip = async () => {
-    if (!tripId) return;
+    if (!tripId) {
+      Alert.alert('No Active Trip', 'There is no active trip to stop.');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -222,8 +283,10 @@ export default function DriverDashboard() {
     if (!route.stops || route.stops.length === 0) return;
 
     // Calculate bounds for all stops
-    const latitudes = route.stops.map(stop => stop.latitude);
-    const longitudes = route.stops.map(stop => stop.longitude);
+    const stops = Array.isArray(route.stops) ? route.stops : [];
+    if (stops.length === 0) return;
+    const latitudes = stops.map(stop => stop.latitude);
+    const longitudes = stops.map(stop => stop.longitude);
     
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);

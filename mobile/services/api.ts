@@ -91,10 +91,26 @@ export const apiEndpoints = {
     if (USE_MOCK_API) {
       return mockApiEndpoints.getAssignedRoutes();
     } else {
-      console.log('Making API call to:', API_BASE_URL + '/api/routes');
-      return api.get('/api/routes');
+      console.log('Making API call to:', API_BASE_URL + '/api/v1/driver/routes');
+      return api.get('/api/v1/driver/routes');
     }
   },
+  
+  // Get current active trip for the logged-in driver
+  getActiveTrip: () =>
+    USE_MOCK_API
+      ? Promise.resolve({ data: { tripId: null, routeId: null, status: 'inactive' } })
+      : api.get('/api/v1/driver/trip/active'),
+
+  getDriverStats: () =>
+    USE_MOCK_API
+      ? Promise.resolve({ data: { totalTrips: 0, kmDriven: 0, passengers: 0 } })
+      : api.get('/api/v1/driver/stats'),
+
+  getDriverTrips: (limit: number = 50) =>
+    USE_MOCK_API
+      ? Promise.resolve({ data: [] })
+      : api.get('/api/v1/driver/trips', { params: { limit } }),
   
   startTrip: (routeId: string) =>
     USE_MOCK_API 

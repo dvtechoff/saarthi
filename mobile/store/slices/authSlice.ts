@@ -187,11 +187,18 @@ const authSlice = createSlice({
       })
       // Load stored auth
       .addCase(loadStoredAuth.fulfilled, (state, action) => {
+        state.isLoading = false;
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
           state.isAuthenticated = true;
         }
+      })
+      .addCase(loadStoredAuth.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(loadStoredAuth.rejected, (state) => {
+        state.isLoading = false;
       })
       // Logout
       .addCase(logoutUser.fulfilled, (state) => {

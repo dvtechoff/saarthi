@@ -1,11 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../store';
+import { 
+  loadSettings,
+  saveSettings,
+  setNotificationsEnabled,
+  setLocationEnabled,
+  setTheme,
+  setLanguage
+} from '../../store/slices/settingsSlice';
 
 export default function DriverSettings() {
+  const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
+  const settings = useSelector((state: RootState) => state.settings);
+
+  React.useEffect(() => {
+    dispatch(loadSettings());
+  }, [dispatch]);
 
   return (
     <ScrollView style={styles.container}>
@@ -22,7 +36,7 @@ export default function DriverSettings() {
           <Ionicons name="person-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Driver Name</Text>
-            <Text style={styles.settingValue}>{user?.name || 'John Driver'}</Text>
+            <Text style={styles.settingValue}>{user?.name || user?.email || '-'}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </View>
@@ -31,7 +45,7 @@ export default function DriverSettings() {
           <Ionicons name="mail-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Email</Text>
-            <Text style={styles.settingValue}>{user?.email || 'driver@example.com'}</Text>
+            <Text style={styles.settingValue}>{user?.email || '-'}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </View>
@@ -44,18 +58,40 @@ export default function DriverSettings() {
           <Ionicons name="notifications-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Notifications</Text>
-            <Text style={styles.settingValue}>Enabled</Text>
+            <Text style={styles.settingValue}>{settings.notificationsEnabled ? 'Enabled' : 'Disabled'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <Switch
+            value={settings.notificationsEnabled}
+            onValueChange={(v) => {
+              dispatch(setNotificationsEnabled(v));
+              dispatch(saveSettings({
+                notificationsEnabled: v,
+                locationEnabled: settings.locationEnabled,
+                theme: settings.theme,
+                language: settings.language,
+              }));
+            }}
+          />
         </View>
         
         <View style={styles.settingItem}>
           <Ionicons name="location-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Location Services</Text>
-            <Text style={styles.settingValue}>Enabled</Text>
+            <Text style={styles.settingValue}>{settings.locationEnabled ? 'Enabled' : 'Disabled'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <Switch
+            value={settings.locationEnabled}
+            onValueChange={(v) => {
+              dispatch(setLocationEnabled(v));
+              dispatch(saveSettings({
+                notificationsEnabled: settings.notificationsEnabled,
+                locationEnabled: v,
+                theme: settings.theme,
+                language: settings.language,
+              }));
+            }}
+          />
         </View>
       </View>
 
@@ -66,18 +102,42 @@ export default function DriverSettings() {
           <Ionicons name="language-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Language</Text>
-            <Text style={styles.settingValue}>English</Text>
+            <Text style={styles.settingValue}>{settings.language === 'en' ? 'English' : 'Hindi'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <TouchableOpacity onPress={() => {
+            const next = settings.language === 'en' ? 'hi' : 'en';
+            dispatch(setLanguage(next));
+            dispatch(saveSettings({
+              notificationsEnabled: settings.notificationsEnabled,
+              locationEnabled: settings.locationEnabled,
+              theme: settings.theme,
+              language: next,
+            }));
+          }}>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.settingItem}>
           <Ionicons name="moon-outline" size={24} color="#8B5CF6" />
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Theme</Text>
-            <Text style={styles.settingValue}>Light</Text>
+            <Text style={styles.settingValue}>{settings.theme === 'light' ? 'Light' : settings.theme === 'dark' ? 'Dark' : 'System'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <TouchableOpacity onPress={() => {
+            const order: ('light'|'dark'|'system')[] = ['light', 'dark', 'system'];
+            const idx = order.indexOf(settings.theme);
+            const next = order[(idx + 1) % order.length];
+            dispatch(setTheme(next));
+            dispatch(saveSettings({
+              notificationsEnabled: settings.notificationsEnabled,
+              locationEnabled: settings.locationEnabled,
+              theme: next,
+              language: settings.language,
+            }));
+          }}>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
       </View>
 

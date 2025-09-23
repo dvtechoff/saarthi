@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { Provider, useSelector } from 'react-redux';
 import { wsService } from '../services/websocket';
 import { RootState, store } from '../store';
+import { loadSettings } from '../store/slices/settingsSlice';
 import { loadStoredAuth } from '../store/slices/authSlice';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -23,6 +24,7 @@ function RootLayoutNav() {
   useEffect(() => {
     // Load stored authentication
     store.dispatch(loadStoredAuth());
+    store.dispatch(loadSettings());
   }, []);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ function RootLayoutNav() {
   }, [isAuthenticated, user]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading) return; // wait until auth hydration completes to avoid login flash
     const currentRoot = segments[0];
     if (!isAuthenticated) {
       if (currentRoot !== '(auth)') router.replace('/(auth)/login');

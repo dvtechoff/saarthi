@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.db.session import get_db
 from app.models.user import User
 from app.models.trip import Route, Trip, Bus, Stop
@@ -9,6 +9,7 @@ from app.schemas.common import LocationData
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -28,6 +29,25 @@ class TripStartResponse(BaseModel):
 class TripStopResponse(BaseModel):
     success: bool
     message: str
+
+class ActiveTripResponse(BaseModel):
+    tripId: Optional[str]
+    routeId: Optional[int]
+    status: str
+
+class DriverStatsResponse(BaseModel):
+    totalTrips: int
+    kmDriven: float
+    passengers: int
+
+class DriverTripHistoryItem(BaseModel):
+    id: int
+    tripId: str
+    routeName: str
+    startTime: str
+    endTime: Optional[str]
+    status: str
+    distance: float
 
 @router.get("/routes", response_model=List[RouteResponse])
 def get_assigned_routes(
@@ -214,3 +234,83 @@ def update_location(
         db.commit()
     
     return {"message": "Location updated successfully"}
+
+@router.get("/trip/active", response_model=ActiveTripResponse)
+def get_active_trip(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get the current active trip for the logged-in driver"""
+    if current_user.role.value != "driver":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Driver role required."
+        )
+
+    trip = db.query(Trip).filter(
+        Trip.driver_id == current_user.id,
+        Trip.status == "active"
+    ).first()
+
+    if not trip:
+        return ActiveTripResponse(tripId=None, routeId=None, status="inactive")
+
+    return ActiveTripResponse(
+        tripId=trip.trip_id,
+        routeId=trip.route_id,
+        status="active"
+    )
+
+@router.get("/stats", response_model=DriverStatsResponse)
+def get_driver_stats(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Aggregated stats for driver profile: total trips, km driven, passengers."""
+    if current_user.role.value != "driver":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Driver role required."
+        )
+
+    total_trips = db.query(func.count()).select_from(Trip).filter(Trip.driver_id == current_user.id).scalar() or 0
+    km_driven = db.query(func.coalesce(func.sum(Trip.distance_traveled), 0.0)).filter(Trip.driver_id == current_user.id).scalar() or 0.0
+    # Passengers not tracked explicitly; return 0 for now or derive from future ticketing
+    passengers = 0
+
+    return DriverStatsResponse(totalTrips=int(total_trips), kmDriven=float(km_driven), passengers=passengers)
+
+@router.get("/trips", response_model=List[DriverTripHistoryItem])
+def get_driver_trip_history(
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get trip history for the logged-in driver."""
+    if current_user.role.value != "driver":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Driver role required."
+        )
+
+    trips = (
+        db.query(Trip)
+        .filter(Trip.driver_id == current_user.id)
+        .order_by(Trip.start_time.desc())
+        .limit(min(max(limit, 1), 100))
+        .all()
+    )
+
+    items: List[DriverTripHistoryItem] = []
+    for t in trips:
+        items.append(DriverTripHistoryItem(
+            id=t.id,
+            tripId=t.trip_id,
+            routeName=f"Route {t.route_id}",
+            startTime=t.start_time.isoformat() if t.start_time else None,
+            endTime=t.end_time.isoformat() if t.end_time else None,
+            status=t.status.value if hasattr(t.status, 'value') else str(t.status),
+            distance=t.distance_traveled or 0.0,
+        ))
+
+    return items

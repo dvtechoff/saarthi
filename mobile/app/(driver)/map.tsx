@@ -52,8 +52,11 @@ export default function DriverMap() {
   const updateMapRegionForRoute = (route: Route) => {
     if (!route.stops || route.stops.length === 0) return;
 
-    const latitudes = route.stops.map(stop => stop.latitude);
-    const longitudes = route.stops.map(stop => stop.longitude);
+    const stops = Array.isArray(route.stops) ? route.stops : [];
+    if (stops.length === 0) return;
+
+    const latitudes = stops.map(stop => stop.latitude);
+    const longitudes = stops.map(stop => stop.longitude);
     
     const minLat = Math.min(...latitudes);
     const maxLat = Math.max(...latitudes);
