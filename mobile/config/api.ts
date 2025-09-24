@@ -5,8 +5,8 @@ export const USE_MOCK_API = false; // Use real backend data
 // Backend URLs
 export const API_CONFIG = {
   // Production Railway URL - UPDATE THIS AFTER DEPLOYING TO RAILWAY
-  PRODUCTION_BASE_URL: 'https://saarthi-track.railway.app',
-  PRODUCTION_WS_URL: 'wss://saarthi-track.railway.app',
+  PRODUCTION_BASE_URL: 'https://saarthi-track.up.railway.app',
+  PRODUCTION_WS_URL: 'wss://saarthi-track.up.railway.app',
   
   // Local development URLs
   BASE_URL: 'http://localhost:8000',
@@ -16,9 +16,13 @@ export const API_CONFIG = {
   ANDROID_BASE_URL: 'http://10.0.2.2:8000',
   ANDROID_WS_URL: 'ws://10.0.2.2:8000',
   
-  // For physical device, use your computer's IP address (update this with your actual IP)
-  DEVICE_BASE_URL: 'http://192.168.6.151:8000',
-  DEVICE_WS_URL: 'ws://192.168.6.151:8000',
+  // For physical device, use Railway backend (Production)
+  DEVICE_BASE_URL: 'https://saarthi-track.up.railway.app',
+  DEVICE_WS_URL: 'wss://saarthi-track.up.railway.app',
+
+  // Local development on physical device (uncomment if needed)
+  // DEVICE_BASE_URL: 'http://192.168.6.151:8000',
+  // DEVICE_WS_URL: 'ws://192.168.6.151:8000',
 };
 
 // Environment detection
