@@ -18,7 +18,7 @@ class Bus(Base):
     __tablename__ = "buses"
     
     id = Column(Integer, primary_key=True, index=True)
-    bus_number = Column(String(20), unique=True, nullable=False)
+    bus_number = Column(String(50), unique=True, nullable=False)  # Increased from 20 to 50
     route_id = Column(Integer, ForeignKey("routes.id"))
     current_latitude = Column(Float, nullable=True)
     current_longitude = Column(Float, nullable=True)

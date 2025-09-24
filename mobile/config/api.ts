@@ -25,23 +25,19 @@ export const API_CONFIG = {
   // DEVICE_WS_URL: 'ws://192.168.6.151:8000',
 };
 
-// Environment detection
-const getBaseUrl = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return API_CONFIG.PRODUCTION_BASE_URL;
-  }
-  return API_CONFIG.BASE_URL;
-};
+// Force Railway backend for testing - SIMPLE SOLUTION
+export const CURRENT_API_BASE_URL = API_CONFIG.DEVICE_BASE_URL; // Always use Railway
+export const CURRENT_WS_URL = API_CONFIG.DEVICE_WS_URL; // Always use Railway WSS
 
-const getWsUrl = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return API_CONFIG.PRODUCTION_WS_URL;
-  }
-  return API_CONFIG.WS_URL;
-};
-
-export const CURRENT_API_BASE_URL = getBaseUrl();
-export const CURRENT_WS_URL = getWsUrl();
+// Alternative: Uncomment below for automatic detection
+// const getBaseUrl = () => {
+//   return __DEV__ ? API_CONFIG.BASE_URL : API_CONFIG.PRODUCTION_BASE_URL;
+// };
+// const getWsUrl = () => {
+//   return __DEV__ ? API_CONFIG.WS_URL : API_CONFIG.PRODUCTION_WS_URL;
+// };
+// export const CURRENT_API_BASE_URL = getBaseUrl();
+// export const CURRENT_WS_URL = getWsUrl();
 
 // Mock user credentials for testing
 export const MOCK_CREDENTIALS = {

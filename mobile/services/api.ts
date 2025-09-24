@@ -5,10 +5,10 @@ import { mockApiEndpoints } from './mockAuth';
 import { USE_MOCK_API, API_CONFIG } from '../config/api';
 import { Platform } from 'react-native';
 
-// Use appropriate URL based on platform
-const API_BASE_URL = Platform.OS === 'android' 
-  ? API_CONFIG.ANDROID_BASE_URL 
-  : API_CONFIG.BASE_URL;
+// Use Railway backend URL
+import { CURRENT_API_BASE_URL } from '../config/api';
+const API_BASE_URL = CURRENT_API_BASE_URL;
+
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,8 +17,6 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Debug logging
 
 
 // Request interceptor to add auth token

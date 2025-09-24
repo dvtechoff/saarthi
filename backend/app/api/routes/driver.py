@@ -136,7 +136,7 @@ def start_trip(
         # Auto-create a virtual bus for this route
         from datetime import datetime
         bus = Bus(
-            bus_number=f"AUTO_{routeId}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            bus_number=f"AUTO_{routeId}_{datetime.now().strftime('%m%d_%H%M')}",
             route_id=routeId,
             current_latitude=28.6139,  # Default Delhi location
             current_longitude=77.209,
