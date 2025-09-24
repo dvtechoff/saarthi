@@ -1,0 +1,13 @@
+# Copy these exact variables to Railway Dashboard → Variables Tab
+# Essential variables only - Railway deployment ready
+
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+JWT_SECRET=saarthi-super-secret-production-jwt-key-change-this-immediately-2024
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=10080
+API_V1_STR=/api/v1
+PROJECT_NAME=Saarthi Bus Tracker API
+DEBUG=False
+ADMIN_EMAIL=authority@saarthi.com
+ADMIN_PASSWORD=Admin@Saarthi2024
+PORT=8000

@@ -34,19 +34,21 @@ git push origin main
 3. Railway automatically provides DATABASE_URL
 
 ### 4. Set Environment Variables
-In Railway project settings, add these variables:
+In Railway project settings → Variables tab, add these variables:
 ```
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-JWT_SECRET=your-super-secret-production-jwt-key-change-this
+JWT_SECRET=saarthi-super-secret-production-jwt-key-change-this-immediately-2024
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=10080
 API_V1_STR=/api/v1
 PROJECT_NAME=Saarthi Bus Tracker API
 DEBUG=False
-ADMIN_EMAIL=authority@example.com
-ADMIN_PASSWORD=admin123456
+ADMIN_EMAIL=authority@saarthi.com
+ADMIN_PASSWORD=Admin@Saarthi2024
 PORT=8000
 ```
+
+**📝 Copy from file:** See `backend/RAILWAY_ENV_SIMPLE.txt` for easy copy-paste
 
 ### 5. Deploy and Test
 1. Railway auto-deploys from GitHub

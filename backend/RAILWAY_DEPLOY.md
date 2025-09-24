@@ -30,6 +30,13 @@
    ADMIN_PASSWORD=admin123456
    PORT=8000
    ```
+   
+   **Neo4j (Optional - for graph features):**
+   ```
+   NEO4J_URL=neo4j+s://your-auradb-instance.databases.neo4j.io
+   NEO4J_USER=neo4j
+   NEO4J_PASSWORD=your-auradb-password
+   ```
 
 6. **Deploy**: Railway will automatically build and deploy your app
 

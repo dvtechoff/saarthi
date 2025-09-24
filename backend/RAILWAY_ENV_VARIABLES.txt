@@ -1,0 +1,173 @@
+# =====================================================
+# SAARTHI RAILWAY DEPLOYMENT - COMPLETE ENVIRONMENT VARIABLES
+# =====================================================
+# Copy these variables to your Railway project's environment settings
+# Go to: Railway Dashboard → Your Project → Variables Tab
+
+# =====================================================
+# 🔧 CORE APPLICATION SETTINGS
+# =====================================================
+
+# Project identification
+PROJECT_NAME=Saarthi Bus Tracker API
+API_V1_STR=/api/v1
+
+# Environment mode (set to False for production)
+DEBUG=False
+
+# Server configuration (Railway will provide PORT automatically)
+PORT=8000
+
+# =====================================================
+# 🐘 DATABASE CONFIGURATION (PostgreSQL)
+# =====================================================
+# Railway automatically provides this when you add PostgreSQL service
+# Do NOT change this - Railway will inject the actual database URL
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+# =====================================================
+# 🔐 JWT AUTHENTICATION SETTINGS
+# =====================================================
+# IMPORTANT: Change JWT_SECRET to a strong, unique secret for production
+JWT_SECRET=saarthi-super-secret-production-jwt-key-change-this-immediately-2024
+JWT_ALGORITHM=HS256
+# Token expiry in minutes (10080 = 7 days)
+JWT_EXPIRE_MINUTES=10080
+
+# =====================================================
+# 👤 DEFAULT ADMIN USER CONFIGURATION
+# =====================================================
+# These create the initial authority/admin user for your system
+ADMIN_EMAIL=authority@saarthi.com
+ADMIN_PASSWORD=Admin@Saarthi2024
+
+# =====================================================
+# 📊 NEO4J GRAPH DATABASE (OPTIONAL)
+# =====================================================
+# Option 1: Leave these blank to disable graph features
+# NEO4J_URL=
+# NEO4J_USER=
+# NEO4J_PASSWORD=
+
+# Option 2: Use Neo4j AuraDB (recommended for graph features)
+# Uncomment and fill these if you set up Neo4j AuraDB:
+# NEO4J_URL=neo4j+s://your-instance-id.databases.neo4j.io
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=your-auradb-password
+
+# Option 3: Use local Neo4j (not recommended for production)
+# NEO4J_URL=neo4j://localhost:7687
+# NEO4J_USER=neo4j
+# NEO4J_PASSWORD=neo4jpassword
+
+# =====================================================
+# 🌐 CORS CONFIGURATION
+# =====================================================
+# These are handled in code, but you can override if needed
+# CORS_ORIGINS is configured in app/core/config.py to include:
+# - localhost (development)
+# - *.railway.app (production)
+# - Mobile app origins (Expo)
+# - All origins (*) for testing
+
+# =====================================================
+# 📱 MOBILE APP INTEGRATION
+# =====================================================
+# Your mobile app expects these test users to exist:
+# - commuter@test.com / password123
+# - driver@test.com / password123
+# - authority@test.com / password123 (or use ADMIN_EMAIL above)
+
+# =====================================================
+# 🚀 RAILWAY-SPECIFIC SETTINGS
+# =====================================================
+# These are automatically handled by Railway:
+# - RAILWAY_ENVIRONMENT=production
+# - RAILWAY_PROJECT_NAME=your-project-name
+# - RAILWAY_SERVICE_NAME=your-service-name
+# - RAILWAY_DEPLOYMENT_ID=deployment-id
+
+# =====================================================
+# 📊 LOGGING CONFIGURATION
+# =====================================================
+# Logging is configured in app/core/logging.py
+# Levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL=INFO
+
+# =====================================================
+# ⚡ PERFORMANCE SETTINGS
+# =====================================================
+# Database connection pool settings (optional)
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+
+# =====================================================
+# 🔒 SECURITY HEADERS
+# =====================================================
+# Security headers are configured in app/core/security.py
+# These include CSRF, XSS, and other security protections
+
+# =====================================================
+# 🌍 TIMEZONE SETTINGS
+# =====================================================
+# Default timezone for the application
+TIMEZONE=UTC
+
+# =====================================================
+# 📧 EMAIL CONFIGURATION (OPTIONAL - Future Feature)
+# =====================================================
+# For future email notifications feature:
+# SMTP_SERVER=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USERNAME=your-email@gmail.com
+# SMTP_PASSWORD=your-app-password
+# EMAIL_FROM=noreply@saarthi.com
+
+# =====================================================
+# 🎯 FEATURE FLAGS (OPTIONAL)
+# =====================================================
+# Enable/disable specific features:
+# ENABLE_REAL_TIME_TRACKING=True
+# ENABLE_PUSH_NOTIFICATIONS=False
+# ENABLE_ANALYTICS=True
+# ENABLE_GRAPH_FEATURES=False
+
+# =====================================================
+# ⚠️  IMPORTANT NOTES:
+# =====================================================
+# 1. Never commit this file with real secrets to version control
+# 2. Change JWT_SECRET to something unique and secure
+# 3. Use strong passwords for ADMIN_PASSWORD
+# 4. DATABASE_URL is automatically provided by Railway PostgreSQL service
+# 5. Neo4j is optional - your app works without it
+# 6. All CORS origins are pre-configured in the code
+# 7. The app automatically creates test users on first startup
+
+# =====================================================
+# 🧪 TEST USER ACCOUNTS (Created Automatically)
+# =====================================================
+# These are created by seed_data.py on first startup:
+# 
+# Authority/Admin:
+# - Email: authority@test.com (or ADMIN_EMAIL value)
+# - Password: password123 (or ADMIN_PASSWORD value)
+# - Role: Authority (can manage everything)
+#
+# Driver:
+# - Email: driver@test.com  
+# - Password: password123
+# - Role: Driver (can update bus locations, view assigned routes)
+#
+# Commuter:
+# - Email: commuter@test.com
+# - Password: password123  
+# - Role: Commuter (can track buses, view routes)
+
+# =====================================================
+# 🔗 API ENDPOINTS AFTER DEPLOYMENT:
+# =====================================================
+# Health Check: https://your-app.railway.app/health
+# API Documentation: https://your-app.railway.app/docs  
+# Authentication: https://your-app.railway.app/api/v1/auth/login
+# Bus Tracking: https://your-app.railway.app/api/v1/commuter/buses
+# Real-time WebSocket: wss://your-app.railway.app/socket.io/

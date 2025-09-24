@@ -14,6 +14,14 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+def check_neo4j_available(neo4j_session):
+    """Check if Neo4j is available, raise HTTP 503 if not"""
+    if neo4j_session is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Graph database unavailable. Neo4j connection not configured."
+        )
+
 class StopCreate(BaseModel):
     id: str
     name: str
@@ -53,6 +61,7 @@ def create_stop(
     if current_user.role != UserRole.authority:
         raise HTTPException(status_code=403, detail="Only authority can create stops")
     
+    check_neo4j_available(neo4j_session)
     graph_service = GraphService(neo4j_session)
     stop = Stop(
         id=stop_data.id,
