@@ -150,6 +150,16 @@ class SecurityHeaders:
             "X-XSS-Protection": "1; mode=block",
             "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
             "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Content-Security-Policy": "default-src 'self'",
+            # Relax CSP to allow Swagger UI assets from jsDelivr and inline styles used by Swagger
+            # If you want stricter CSP in production, consider conditionally relaxing only for /docs paths
+            "Content-Security-Policy": (
+                "default-src 'self' https://cdn.jsdelivr.net; "
+                "script-src 'self' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data:; "
+                "font-src 'self' https://cdn.jsdelivr.net; "
+                "connect-src 'self'; "
+                "object-src 'none'"
+            ),
             "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
         }

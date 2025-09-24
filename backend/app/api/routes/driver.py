@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db.session import get_db
 from app.models.user import User
-from app.models.trip import Route, Trip, Bus, Stop
+from app.models.trip import Route, Trip, Bus, Stop, DriverRouteAssignment
 from app.api.deps import get_current_active_user
 from app.schemas.common import LocationData
 from pydantic import BaseModel
@@ -54,14 +54,19 @@ def get_assigned_routes(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Get routes assigned to the driver"""
+    """Get routes assigned to the driver. If none explicitly assigned, return active routes as fallback."""
     if current_user.role.value != "driver":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied. Driver role required."
         )
     
-    routes = db.query(Route).filter(Route.is_active == True).all()
+    # Assigned route IDs
+    assigned_ids = [r.route_id for r in db.query(DriverRouteAssignment).filter(DriverRouteAssignment.driver_id == current_user.id).all()]
+    if assigned_ids:
+        routes = db.query(Route).filter(Route.id.in_(assigned_ids), Route.is_active == True).all()
+    else:
+        routes = db.query(Route).filter(Route.is_active == True).all()
     
     result = []
     for route in routes:

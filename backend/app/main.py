@@ -13,8 +13,12 @@ from app.core.rate_limiting import rate_limit_middleware
 from app.core.security import SecurityHeaders
 from app.api.routes import auth, driver, commuter, authority, graph
 from app.realtime.socket import sio_app
-from app.db.session import get_db
+from app.db.session import get_db, SessionLocal
 from app.models.trip import Route, Stop
+from app.models.user import User, UserRole
+from app.core.security import get_password_hash
+from sqlalchemy.exc import SQLAlchemyError
+import os
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi import Depends
@@ -23,8 +27,8 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     description="Real-time bus tracking API for Saarthi",
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 if not settings.DEBUG:
@@ -50,8 +54,11 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     process_time = time.time() - start_time
     logger.info(f"Response: {response.status_code} in {process_time:.3f}s")
-    for header, value in SecurityHeaders.get_headers().items():
-        response.headers[header] = value
+    # Skip strict headers for Swagger UI and OpenAPI JSON to avoid CSP conflicts
+    path = request.url.path
+    if not (path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi.json")):
+        for header, value in SecurityHeaders.get_headers().items():
+            response.headers[header] = value
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
@@ -98,6 +105,30 @@ async def get_routes(db: Session = Depends(get_db)):
     return result
 
 asgi = socketio.ASGIApp(sio_app, other_asgi_app=app)
+
+@app.on_event("startup")
+def ensure_default_authority():
+    """Ensure a default authority user exists for initial login."""
+    admin_email = os.getenv("ADMIN_EMAIL", "authority@example.com")
+    admin_password = os.getenv("ADMIN_PASSWORD", "password123")
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == admin_email).first()
+        if not existing:
+            user = User(
+                email=admin_email,
+                password_hash=get_password_hash(admin_password),
+                role=UserRole.AUTHORITY,
+                name="Authority Admin",
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+    except SQLAlchemyError as e:
+        logger.error(f"Failed to ensure default authority user: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     uvicorn.run("app.main:asgi", host="0.0.0.0", port=8000, reload=True)

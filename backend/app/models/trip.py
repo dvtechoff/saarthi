@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Text, Enum, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Text, Enum, Boolean, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -91,3 +91,15 @@ class Feedback(Base):
     # Relationships
     commuter = relationship("User")
     bus = relationship("Bus")
+
+class DriverRouteAssignment(Base):
+    __tablename__ = "driver_route_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    driver_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    route_id = Column(Integer, ForeignKey("routes.id"), index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('driver_id', 'route_id', name='uq_driver_route'),
+    )
