@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db.session import get_db
 from app.models.user import User
-from app.models.trip import Route, Trip, Bus, Stop, DriverRouteAssignment
+from app.models.trip import Route, Trip, Bus, Stop, DriverRouteAssignment, OccupancyLevel
 from app.api.deps import get_current_active_user
 from app.schemas.common import LocationData
 from pydantic import BaseModel
@@ -133,10 +133,22 @@ def start_trip(
     ).first()
     
     if not bus:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No available bus for this route"
+        # Auto-create a virtual bus for this route
+        from datetime import datetime
+        bus = Bus(
+            bus_number=f"AUTO_{routeId}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            route_id=routeId,
+            current_latitude=28.6139,  # Default Delhi location
+            current_longitude=77.209,
+            speed=0.0,
+            occupancy=OccupancyLevel.LOW,
+            is_active=False,
+            last_updated=datetime.utcnow()
         )
+        db.add(bus)
+        db.flush()  # Get the bus ID without committing
+        print(f"🚌 Auto-created bus {bus.bus_number} for route {routeId}")
+    
     
     # Create new trip
     trip_id = f"trip_{uuid.uuid4().hex[:8]}"

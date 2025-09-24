@@ -47,32 +47,23 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const apiUrl = getApiUrl();
-      console.log('Login API URL:', apiUrl);
+      // Use apiEndpoints which handles mock vs real API automatically
+      const { apiEndpoints } = await import('../../services/api');
+      const response = await apiEndpoints.login(credentials);
       
-      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
+      // Handle both mock response and API response formats
+      const data = 'data' in response ? response.data : response;
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
-      }
+      // Backend returns { access_token, user }, mock returns { token, user }
+      const user = data.user;
+      const token = data.access_token || data.token;
       
-      const data = await response.json();
-      const { user, access_token } = data;
-      
-      setAuthToken(access_token);
+      setAuthToken(token);
       // Store in secure storage
-      await SecureStore.setItemAsync('auth', JSON.stringify({ user, token: access_token }));
+      await SecureStore.setItemAsync('auth', JSON.stringify({ user, token }));
       
-      return { user, token: access_token };
+      return { user, token };
     } catch (error: any) {
-      console.error('Login error:', error);
       return rejectWithValue(error.message || 'Login failed');
     }
   }
@@ -82,32 +73,27 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (userData: { email: string; password: string; role: 'commuter' | 'driver' | 'authority'; name?: string; phone?: string }, { rejectWithValue }) => {
     try {
-      const apiUrl = getApiUrl();
-      console.log('Register API URL:', apiUrl);
+
       
-      const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+      // Use apiEndpoints which handles mock vs real API automatically
+      const { apiEndpoints } = await import('../../services/api');
+      const response = await apiEndpoints.register(userData);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
-      }
+      // Handle both mock response and API response formats
+      const data = 'data' in response ? response.data : response;
       
-      const data = await response.json();
-      const { user, access_token } = data;
+      // Backend returns { access_token, user }, mock returns { token, user }
+      const user = data.user;
+      const token = data.access_token || data.token;
       
-      setAuthToken(access_token);
+      setAuthToken(token);
       // Store in secure storage
-      await SecureStore.setItemAsync('auth', JSON.stringify({ user, token: access_token }));
+      await SecureStore.setItemAsync('auth', JSON.stringify({ user, token }));
       
-      return { user, token: access_token };
+
+      return { user, token };
     } catch (error: any) {
-      console.error('Register error:', error);
+
       return rejectWithValue(error.message || 'Registration failed');
     }
   }

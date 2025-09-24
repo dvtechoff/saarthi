@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiEndpoints } from '../../services/api';
 import { wsService } from '../../services/websocket';
 import { AppDispatch, RootState } from '../../store';
-import { Route, setRoutes, setSelectedRoute } from '../../store/slices/busSlice';
+import { Route, BusStop, setRoutes, setSelectedRoute } from '../../store/slices/busSlice';
 import { setCurrentLocation, setPermissionGranted, setTracking } from '../../store/slices/locationSlice';
 
 const { width, height } = Dimensions.get('window');
@@ -45,9 +45,12 @@ export default function DriverDashboard() {
   
   // Route tracking state
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
-  const [routeDirections, setRouteDirections] = useState([]);
-  const [nextStop, setNextStop] = useState(null);
+  const [routeDirections, setRouteDirections] = useState<Array<{latitude: number; longitude: number}>>([]);
+  const [nextStop, setNextStop] = useState<BusStop | null>(null);
   const [routeProgress, setRouteProgress] = useState(0);
+  
+  // Route selector modal state
+  const [showRouteSelector, setShowRouteSelector] = useState(false);
 
   useEffect(() => {
     requestLocationPermission();
@@ -146,24 +149,43 @@ export default function DriverDashboard() {
   const fetchAssignedRoutes = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching assigned routes...');
       const response = await apiEndpoints.getAssignedRoutes();
-      console.log('Routes response:', response);
       
-      // Handle different response structures
-      const routes = response.data.routes || response.data || [];
-      console.log('Parsed routes:', routes);
+      // Handle different response structures from backend
+      let routes = [];
+      if (response.data) {
+        routes = Array.isArray(response.data) ? response.data : (response.data.routes || []);
+      } else if (Array.isArray(response)) {
+        routes = response;
+      }
+      
       dispatch(setRoutes(routes));
       
-      // Auto-select first route if available
+      // Auto-select first route if available and no route is currently selected
       if (routes.length > 0 && !selectedRoute) {
         dispatch(setSelectedRoute(routes[0]));
+        updateMapRegionForRoute(routes[0]);
+      }
+      
+      // Display info about assigned routes
+      if (routes.length === 0) {
+        Alert.alert(
+          'No Routes Assigned', 
+          'You don\'t have any routes assigned yet. Please contact your supervisor.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error: any) {
-      console.error('Error fetching routes:', error);
       // Set empty routes array on error to prevent undefined map
       dispatch(setRoutes([]));
-      Alert.alert('Error', 'Failed to fetch assigned routes');
+      Alert.alert(
+        'Error', 
+        'Failed to fetch your assigned routes. Please check your connection and try again.',
+        [
+          { text: 'Retry', onPress: fetchAssignedRoutes },
+          { text: 'Cancel' }
+        ]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -177,12 +199,13 @@ export default function DriverDashboard() {
 
     try {
       setIsLoading(true);
-      console.log('Starting trip for route:', selectedRoute.id);
       const response = await apiEndpoints.startTrip(selectedRoute.id);
-      console.log('Start trip response:', response);
       
       setTripId(response.data.tripId);
       dispatch(setTracking(true));
+      
+      // Close route selector since trip is now active
+      setShowRouteSelector(false);
       
       // Initialize route tracking
       setCurrentStopIndex(0);
@@ -199,11 +222,41 @@ export default function DriverDashboard() {
       // Start location tracking
       startLocationTracking();
       
+      // Close route selector since trip is now active
+      setShowRouteSelector(false);
+      
       Alert.alert('Success', `Trip started successfully!\nTrip ID: ${response.data.tripId}\nNext Stop: ${selectedRoute.stops[0]?.name}`);
     } catch (error: any) {
       console.error('Error starting trip:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to start trip';
-      Alert.alert('Error', errorMessage);
+      let errorMessage = 'Failed to start trip';
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        const detail = error.response?.data?.detail || '';
+        if (detail.includes('no available bus')) {
+          errorMessage = `No bus available for route "${selectedRoute.name}". Please contact your supervisor or try a different route.`;
+        } else if (detail.includes('already has an active trip')) {
+          errorMessage = 'You already have an active trip. Please stop the current trip before starting a new one.';
+        } else if (detail.includes('Route not found')) {
+          errorMessage = 'This route is no longer available. Please select a different route.';
+        } else {
+          errorMessage = detail || errorMessage;
+        }
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Cannot Start Trip', errorMessage, [
+        { text: 'OK' },
+        ...(errorMessage.includes('no available bus') ? [
+          { 
+            text: 'Refresh Routes', 
+            onPress: () => fetchAssignedRoutes() 
+          }
+        ] : [])
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -244,17 +297,38 @@ export default function DriverDashboard() {
           timeInterval: 5000, // Update every 5 seconds
           distanceInterval: 10, // Update every 10 meters
         },
-        (location) => {
+        async (location) => {
           dispatch(setCurrentLocation(location));
           
-          // Send location to server via WebSocket
-          wsService.emit('driver:location', {
+          const locationData = {
             lat: location.coords.latitude,
             lng: location.coords.longitude,
             heading: location.coords.heading,
             speed: location.coords.speed,
+            routeId: selectedRoute?.id,
+            routeName: selectedRoute?.name,
+            tripId: tripId,
+            busId: user?.id, // Use driver ID as bus identifier
             ts: Date.now(),
-          });
+          };
+
+          // Send location via both WebSocket and REST API for reliability
+          // WebSocket for real-time updates (if connected)
+          if (wsService.isConnected()) {
+            wsService.emit('driver:location', locationData);
+          }
+          
+          // REST API as fallback/primary method
+          try {
+            await apiEndpoints.updateLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              heading: location.coords.heading,
+              speed: location.coords.speed,
+            });
+          } catch (error) {
+            console.warn('Failed to update location via API:', error);
+          }
         }
       );
       
@@ -273,10 +347,29 @@ export default function DriverDashboard() {
   };
 
   const handleRouteSelect = (route: Route) => {
+    // Prevent route selection when a trip is running
+    if (tripId) {
+      Alert.alert(
+        'Trip in Progress', 
+        'Cannot change routes while a trip is running. Please stop the current trip first.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+    
     dispatch(setSelectedRoute(route));
     updateMapRegionForRoute(route);
     setCurrentStopIndex(0);
     setRouteProgress(0);
+    
+    // Notify commuters about route change
+    wsService.emit('driver_route_changed', {
+      driverId: user?.id,
+      busId: user?.id,
+      newRouteId: route.id,
+      newRouteName: route.name,
+      timestamp: new Date().toISOString(),
+    });
   };
 
   const updateMapRegionForRoute = (route: Route) => {
@@ -355,7 +448,7 @@ export default function DriverDashboard() {
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Update', 
-          onPress: (count) => {
+          onPress: (count?: string) => {
             const numCount = parseInt(count || '0');
             if (!isNaN(numCount)) {
               setPassengerCount(numCount);
@@ -408,17 +501,89 @@ export default function DriverDashboard() {
           </View>
         </View>
 
-        {/* Assigned Route Card */}
+        {/* Assigned Routes Card */}
         <View style={styles.assignedRouteCard}>
-          <Text style={styles.assignedRouteLabel}>Assigned Route</Text>
+          <Text style={styles.assignedRouteLabel}>Assigned Routes</Text>
           <View style={styles.routeInfo}>
-            <Text style={styles.routeName}>
-              {selectedRoute?.name || 'Route 4A: Downtown to Northside'}
-            </Text>
-            <TouchableOpacity style={styles.routeChangeButton}>
-              <Ionicons name="swap-horizontal" size={20} color="#8B5CF6" />
+            <View style={styles.routeDetails}>
+              <Text style={styles.routeName}>
+                {selectedRoute?.name || 'No Route Selected'}
+              </Text>
+              {selectedRoute && selectedRoute.stops && (
+                <Text style={styles.routeDescription}>
+                  {selectedRoute.stops.length} stops
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity 
+              style={[
+                styles.routeChangeButton, 
+                tripId && styles.routeChangeButtonDisabled
+              ]}
+              onPress={() => {
+                if (tripId) {
+                  Alert.alert(
+                    'Trip in Progress', 
+                    'Cannot browse routes while a trip is running. Please stop the current trip first.'
+                  );
+                  return;
+                }
+                setShowRouteSelector(!showRouteSelector);
+              }}
+              disabled={!!tripId}
+            >
+              <Ionicons 
+                name="list" 
+                size={20} 
+                color={tripId ? "#999" : "#8B5CF6"} 
+              />
+              <Text style={[
+                styles.changeRouteText, 
+                tripId && styles.changeRouteTextDisabled
+              ]}>
+                Browse
+              </Text>
             </TouchableOpacity>
           </View>
+          
+          {/* Show route info when selected */}
+          {selectedRoute && selectedRoute.stops && selectedRoute.stops.length > 0 && (
+            <View style={styles.routePreview}>
+              <Text style={styles.routePreviewText}>
+                {selectedRoute.stops[0]?.name} → {selectedRoute.stops[selectedRoute.stops.length - 1]?.name}
+              </Text>
+            </View>
+          )}
+          
+          {/* Route selection list */}
+          {showRouteSelector && routes && routes.length > 0 && (
+            <View style={styles.routesList}>
+              <Text style={styles.routesListTitle}>Available Routes ({routes.length})</Text>
+              {routes.map((route, index) => (
+                <TouchableOpacity
+                  key={route.id}
+                  style={[
+                    styles.routeListItem,
+                    selectedRoute?.id === route.id && styles.selectedRouteItem
+                  ]}
+                  onPress={() => {
+                    handleRouteSelect(route);
+                    setShowRouteSelector(false);
+                  }}
+                >
+                  <View style={styles.routeItemContent}>
+                    <Text style={styles.routeItemName}>{route.name}</Text>
+                    <Text style={styles.routeItemInfo}>
+                      {route.stops.length} stops
+                    </Text>
+                  </View>
+                  {selectedRoute?.id === route.id && (
+                    <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Trip Statistics Card */}
@@ -444,20 +609,20 @@ export default function DriverDashboard() {
               <View style={styles.actionIcon}>
                 <Ionicons name="warning" size={24} color="#8B5CF6" />
               </View>
-              <Text style={styles.actionText}>Report Delay</Text>
+              <Text style={styles.actionText} numberOfLines={2}>Report Delay</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handlePassengerCount}>
               <View style={styles.actionIcon}>
                 <Ionicons name="people" size={24} color="#8B5CF6" />
               </View>
-              <Text style={styles.actionText}>Passenger Count</Text>
+              <Text style={styles.actionText} numberOfLines={2}>Passenger Count</Text>
             </TouchableOpacity>
             {isTracking && (
               <TouchableOpacity style={styles.actionButton} onPress={moveToNextStop}>
                 <View style={styles.actionIcon}>
                   <Ionicons name="arrow-forward" size={24} color="#8B5CF6" />
                 </View>
-                <Text style={styles.actionText}>Next Stop</Text>
+                <Text style={styles.actionText} numberOfLines={2}>Next Stop</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -650,7 +815,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   
   // Status Card
@@ -757,13 +923,15 @@ const styles = StyleSheet.create({
   quickActionsCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   quickActionsTitle: {
     fontSize: 16,
@@ -773,14 +941,22 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    paddingHorizontal: 4,
+    gap: 8,
   },
   actionButton: {
+    flex: 1,
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: '#F3E8FF',
-    minWidth: 100,
+    minWidth: 0,
+    maxWidth: (width - 80) / 3, // Ensure buttons fit on screen
+    minHeight: 100,
+    justifyContent: 'center',
   },
   actionIcon: {
     width: 48,
@@ -790,12 +966,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   actionText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     color: '#1F2937',
     textAlign: 'center',
+    lineHeight: 16,
   },
   
   // Route Preview Card
@@ -823,14 +1005,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  busMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#8B5CF6',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   
   // Trip Controls
@@ -944,7 +1118,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   
-  // Bus Marker
+  // Bus Marker (consolidated)
   busMarker: {
     backgroundColor: '#8B5CF6',
     width: 40,
@@ -959,5 +1133,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  
+  // Route selector styles
+  routeDetails: {
+    flex: 1,
+  },
+  routeDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  changeRouteText: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginLeft: 4,
+  },
+  routeChangeButtonDisabled: {
+    opacity: 0.5,
+  },
+  changeRouteTextDisabled: {
+    color: '#999',
+  },
+  routePreview: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 8,
+  },
+  routePreviewText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  routesList: {
+    marginTop: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+  },
+  routesListTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  routeListItem: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  selectedRouteItem: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#f8fff8',
+  },
+  routeItemContent: {
+    flex: 1,
+  },
+  routeItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  routeItemInfo: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });

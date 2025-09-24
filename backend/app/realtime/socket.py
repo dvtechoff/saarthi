@@ -97,6 +97,18 @@ async def eta_update(sid, data):
         print(f"Error broadcasting ETA update: {e}")
 
 @sio_app.event
+async def driver_route_changed(sid, data):
+    """Handle driver route change events"""
+    try:
+        # Broadcast to commuters and authority about route change
+        await sio_app.emit("driver:route:changed", data, room="commuters")
+        await sio_app.emit("driver:route:changed", data, room="authority")
+        
+        print(f"Driver route change broadcasted: {data}")
+    except Exception as e:
+        print(f"Error broadcasting route change: {e}")
+
+@sio_app.event
 async def feedback_submitted(sid, data):
     """Handle feedback submission"""
     try:

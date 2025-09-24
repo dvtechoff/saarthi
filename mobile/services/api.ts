@@ -19,19 +19,14 @@ export const api = axios.create({
 });
 
 // Debug logging
-console.log('API Service initialized with base URL:', API_BASE_URL);
+
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
-    console.log('API Request to:', config.url, 'Token available:', !!token);
-    console.log('Token value:', token ? token.substring(0, 20) + '...' : 'No token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('Added Authorization header:', config.headers.Authorization);
-    } else {
-      console.log('No token available, request will be sent without authentication');
     }
     return config;
   },
@@ -42,16 +37,10 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    console.log('API Response:', response.status, response.config.url);
+  (response) => {
     return response;
   },
   (error) => {
-    console.log('API Error:', error.response?.status, error.config?.url, error.message);
-    if (error.response?.status === 401) {
-      // Token expired - let the calling component handle logout
-      console.warn('Authentication token expired');
-    }
     return Promise.reject(error);
   }
 );
@@ -64,7 +53,7 @@ export const apiEndpoints = {
       ? mockApiEndpoints.login(credentials.email, credentials.password)
       : api.post('/api/v1/auth/login', credentials),
   
-  register: (userData: { email: string; password: string; role: 'commuter' | 'driver'; name?: string; phone?: string }) =>
+  register: (userData: { email: string; password: string; role: 'commuter' | 'driver' | 'authority'; name?: string; phone?: string }) =>
     USE_MOCK_API 
       ? mockApiEndpoints.register(userData)
       : api.post('/api/v1/auth/register', userData),
@@ -86,12 +75,11 @@ export const apiEndpoints = {
       : api.post('/api/v1/commuter/feedback', data),
   
   // Driver endpoints
-  getAssignedRoutes: () => {
-    console.log('getAssignedRoutes called, USE_MOCK_API:', USE_MOCK_API);
+  getAssignedRoutes: async () => {
     if (USE_MOCK_API) {
-      return mockApiEndpoints.getAssignedRoutes();
+      return api.get('/api/v1/driver/routes');
     } else {
-      console.log('Making API call to:', API_BASE_URL + '/api/v1/driver/routes');
+      // Return live API call for production
       return api.get('/api/v1/driver/routes');
     }
   },
@@ -122,7 +110,7 @@ export const apiEndpoints = {
       ? Promise.resolve({ data: { success: true } })
       : api.post(`/api/v1/driver/trip/stop?tripId=${tripId}`),
   
-  updateLocation: (data: { lat: number; lng: number; heading?: number; speed?: number }) =>
+  updateLocation: (data: { latitude: number; longitude: number; heading?: number; speed?: number }) =>
     USE_MOCK_API 
       ? Promise.resolve({ data: { success: true } })
       : api.post('/api/v1/driver/location', data),
@@ -131,7 +119,7 @@ export const apiEndpoints = {
   getAllBuses: () =>
     USE_MOCK_API 
       ? mockApiEndpoints.getNearbyBuses()
-      : api.get('/api/v1/authority/buses'),
+      : api.get('/api/v1/authority/buses/all'),
   
   getAnalytics: (dateRange?: { start: string; end: string }) =>
     USE_MOCK_API 

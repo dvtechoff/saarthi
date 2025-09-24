@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
@@ -16,8 +16,9 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useDispatch, useSelector } from 'react-redux';
 import { apiEndpoints } from '../../services/api';
 import { AppDispatch, RootState } from '../../store';
-import { setBuses, setError, setLoading, setSelectedBus } from '../../store/slices/busSlice';
+import { Bus, setBuses, setError, setLoading, setSelectedBus, updateBus } from '../../store/slices/busSlice';
 import { setCurrentLocation, setPermissionGranted } from '../../store/slices/locationSlice';
+import { getAuthToken } from '../../services/auth-token';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,6 +52,52 @@ export default function CommuterDashboard() {
     }
   }, [permissionGranted, currentLocation]);
 
+  // Force fetch buses on component mount
+  useEffect(() => {
+    if (currentLocation) {
+      fetchNearbyBuses();
+    } else {
+      // If no location yet, request it
+      requestLocationPermission();
+    }
+  }, []);
+
+  // Also fetch buses when component becomes focused - increased frequency for better sync
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (currentLocation && !refreshing) {
+        fetchNearbyBuses();
+      }
+    }, 10000); // Refresh every 10 seconds for more real-time updates
+
+    return () => clearInterval(intervalId);
+  }, [currentLocation, refreshing]);
+
+  // Also try fetching on component mount with a delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentLocation) {
+        fetchNearbyBuses();
+      }
+    }, 2000); // Wait 2 seconds after mount
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Enhanced polling for real-time bus updates (WebSocket temporarily disabled)
+  useEffect(() => {
+    // Enhanced polling interval for better real-time updates
+    const intervalId = setInterval(() => {
+      if (currentLocation && !refreshing) {
+        fetchNearbyBuses();
+      }
+    }, 8000); // Every 8 seconds - balance between real-time and performance
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [currentLocation, refreshing]);
+
   const requestLocationPermission = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -66,7 +113,6 @@ export default function CommuterDashboard() {
         );
       }
     } catch (error) {
-      console.error('Error getting location:', error);
       dispatch(setError('Failed to get location'));
     }
   };
@@ -76,16 +122,35 @@ export default function CommuterDashboard() {
 
     try {
       dispatch(setLoading(true));
+      
       const response = await apiEndpoints.getNearbyBuses(
         currentLocation.coords.latitude,
         currentLocation.coords.longitude,
         5000
       );
+      
       // Handle different response formats
-      const buses = response.data.buses || response.data;
+      const rawBuses = Array.isArray(response.data) ? response.data : (response.data.buses || []);
+      
+      // Transform API response to match Redux Bus interface
+      const buses = rawBuses.map((bus: any) => ({
+        id: bus.id.toString(), // Convert number to string
+        routeId: bus.id.toString(), // Use same as id for now
+        routeName: bus.routeName,
+        currentStop: bus.currentStop,
+        nextStop: bus.nextStop,
+        latitude: bus.latitude,
+        longitude: bus.longitude,
+        heading: 0, // Default value since API doesn't provide this
+        speed: bus.speed,
+        occupancy: bus.occupancy,
+        lastUpdated: bus.lastUpdated,
+        isActive: true // Default to true since these are nearby active buses
+      }));
+      
       dispatch(setBuses(buses));
+      
     } catch (error: any) {
-      console.error('Error fetching buses:', error);
       dispatch(setError('Failed to fetch nearby buses'));
     } finally {
       dispatch(setLoading(false));
@@ -94,8 +159,22 @@ export default function CommuterDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchNearbyBuses();
-    setRefreshing(false);
+    
+    try {
+      // Force location update first
+      if (permissionGranted) {
+        const location = await Location.getCurrentPositionAsync({});
+        dispatch(setCurrentLocation(location));
+      }
+      
+      // Then fetch buses
+      await fetchNearbyBuses();
+      
+    } catch (error) {
+      Alert.alert('Refresh Error', 'Failed to refresh data. Please try again.');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleBusPress = (bus: any) => {
@@ -119,6 +198,7 @@ export default function CommuterDashboard() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.welcomeSection}>
@@ -155,19 +235,24 @@ export default function CommuterDashboard() {
           showsMyLocationButton
           onRegionChangeComplete={setRegion}
         >
-          {buses.map((bus) => (
-            <Marker
-              key={bus.id}
-              coordinate={{
-                latitude: bus.latitude || bus.current_latitude,
-                longitude: bus.longitude || bus.current_longitude,
-              }}
-              title={bus.routeName || `Route ${bus.bus_number}`}
-              description={`${bus.currentStop || 'Current Stop'} → ${bus.nextStop || 'Next Stop'}`}
-              pinColor={getBusColor(bus.occupancy)}
-              onPress={() => handleBusPress(bus)}
-            />
-          ))}
+          {buses.map((bus) => {
+            return (
+              <Marker
+                key={bus.id}
+                coordinate={{
+                  latitude: bus.latitude,
+                  longitude: bus.longitude,
+                }}
+                title={bus.routeName}
+                description={`Current: ${bus.currentStop} → Next: ${bus.nextStop} | Speed: ${Math.round(bus.speed)} km/h`}
+                onPress={() => handleBusPress(bus)}
+              >
+                <View style={[styles.busMarker, { backgroundColor: getBusColor(bus.occupancy) }]}>
+                  <Ionicons name="bus" size={20} color="#fff" />
+                </View>
+              </Marker>
+            );
+          })}
         </MapView>
         
         {/* Map Controls */}
@@ -477,5 +562,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  
+  // Bus Marker for Map
+  busMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

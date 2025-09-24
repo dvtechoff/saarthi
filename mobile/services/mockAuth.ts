@@ -4,7 +4,7 @@
 export interface MockUser {
   id: string;
   email: string;
-  role: 'commuter' | 'driver';
+  role: 'commuter' | 'driver' | 'authority';
   name?: string;
   phone?: string;
 }
@@ -29,6 +29,13 @@ const mockUsers: MockUser[] = [
     role: 'driver',
     name: 'Test Driver',
     phone: '+1234567891'
+  },
+  {
+    id: '3',
+    email: 'authority@test.com',
+    role: 'authority',
+    name: 'Test Authority',
+    phone: '+1234567892'
   }
 ];
 
@@ -58,7 +65,7 @@ export const mockLogin = async (email: string, password: string): Promise<MockAu
 export const mockRegister = async (userData: {
   email: string;
   password: string;
-  role: 'commuter' | 'driver';
+  role: 'commuter' | 'driver' | 'authority';
   name?: string;
   phone?: string;
 }): Promise<MockAuthResponse> => {

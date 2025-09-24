@@ -5,6 +5,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, TokenResponse, UserResponse
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -73,6 +74,18 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
             phone=user.phone,
             is_active=user.is_active
         )
+    )
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current authenticated user information"""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        role=current_user.role,
+        name=current_user.name,
+        phone=current_user.phone,
+        is_active=current_user.is_active
     )
 
 @router.get("/users", response_model=List[UserResponse])
