@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         "http://10.0.2.2:19006",
         "exp://192.168.0.0/16",
         "exp://localhost:8081",
+        "https://*.railway.app",
+        "https://*.up.railway.app",
         "*"
     ]
     API_V1_STR: str = "/api/v1"

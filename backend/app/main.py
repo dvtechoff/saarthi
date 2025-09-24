@@ -34,7 +34,7 @@ app = FastAPI(
 if not settings.DEBUG:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1", "*.yourdomain.com"]
+        allowed_hosts=["localhost", "127.0.0.1", "*.railway.app", "*.up.railway.app"]
     )
 
 app.add_middleware(
