@@ -607,20 +607,20 @@ export default function DriverDashboard() {
           <View style={styles.actionsContainer}>
             <TouchableOpacity style={styles.actionButton} onPress={handleReportDelay}>
               <View style={styles.actionIcon}>
-                <Ionicons name="warning" size={24} color="#8B5CF6" />
+                <Ionicons name="warning" size={24} color="white" />
               </View>
               <Text style={styles.actionText} numberOfLines={2}>Report Delay</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handlePassengerCount}>
               <View style={styles.actionIcon}>
-                <Ionicons name="people" size={24} color="#8B5CF6" />
+                <Ionicons name="people" size={24} color="white" />
               </View>
               <Text style={styles.actionText} numberOfLines={2}>Passenger Count</Text>
             </TouchableOpacity>
             {isTracking && (
               <TouchableOpacity style={styles.actionButton} onPress={moveToNextStop}>
                 <View style={styles.actionIcon}>
-                  <Ionicons name="arrow-forward" size={24} color="#8B5CF6" />
+                  <Ionicons name="arrow-forward" size={24} color="white" />
                 </View>
                 <Text style={styles.actionText} numberOfLines={2}>Next Stop</Text>
               </TouchableOpacity>

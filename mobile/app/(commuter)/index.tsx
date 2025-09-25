@@ -54,6 +54,9 @@ export default function CommuterDashboard() {
 
   // Force fetch buses on component mount
   useEffect(() => {
+    // Clear any cached buses on app start
+    dispatch(setBuses([]));
+    
     if (currentLocation) {
       fetchNearbyBuses();
     } else {
@@ -131,6 +134,12 @@ export default function CommuterDashboard() {
       
       // Handle different response formats
       const rawBuses = Array.isArray(response.data) ? response.data : (response.data.buses || []);
+      
+      // If no buses returned, clear the buses array
+      if (!rawBuses || rawBuses.length === 0) {
+        dispatch(setBuses([]));
+        return;
+      }
       
       // Transform API response to match Redux Bus interface
       const buses = rawBuses.map((bus: any) => ({
