@@ -462,14 +462,27 @@ def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete user with active trips. Please complete or cancel active trips first.")
     
     try:
-        # Delete related records first if table exists
+        # Delete related records first to avoid foreign key constraints
+        
+        # 1. Delete driver route assignments
         try:
             db.query(DriverRouteAssignment).filter(DriverRouteAssignment.driver_id == user_id).delete()
         except Exception as assignment_error:
-            # Log the error but continue - table might not exist yet
             print(f"Warning: Could not delete driver route assignments: {assignment_error}")
         
-        # Delete the user
+        # 2. Delete feedbacks by this user (as commuter)
+        try:
+            db.query(Feedback).filter(Feedback.commuter_id == user_id).delete()
+        except Exception as feedback_error:
+            print(f"Warning: Could not delete user feedbacks: {feedback_error}")
+        
+        # 3. Update trips to remove driver reference (set to NULL instead of deleting trips)
+        try:
+            db.query(Trip).filter(Trip.driver_id == user_id).update({"driver_id": None})
+        except Exception as trip_error:
+            print(f"Warning: Could not update trips: {trip_error}")
+        
+        # Finally, delete the user
         db.delete(user)
         db.commit()
         return {"message": "User deleted successfully"}
