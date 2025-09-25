@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[Union[str, AnyHttpUrl]] = [
         "http://localhost:8081",
         "http://localhost:19006", 
+        "http://localhost:5173",  # Admin panel development
         "http://10.0.2.2:8000",
         "http://10.0.2.2:8081",
         "http://10.0.2.2:19006",
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
         "exp://localhost:8081",
         "https://*.railway.app",
         "https://*.up.railway.app",
+        "https://*.vercel.app",
         "*"
     ]
     API_V1_STR: str = "/api/v1"

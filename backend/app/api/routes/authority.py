@@ -462,8 +462,12 @@ def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete user with active trips. Please complete or cancel active trips first.")
     
     try:
-        # Delete related records first
-        db.query(DriverRouteAssignment).filter(DriverRouteAssignment.driver_id == user_id).delete()
+        # Delete related records first if table exists
+        try:
+            db.query(DriverRouteAssignment).filter(DriverRouteAssignment.driver_id == user_id).delete()
+        except Exception as assignment_error:
+            # Log the error but continue - table might not exist yet
+            print(f"Warning: Could not delete driver route assignments: {assignment_error}")
         
         # Delete the user
         db.delete(user)
