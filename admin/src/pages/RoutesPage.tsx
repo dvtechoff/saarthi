@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Route, Stop, createRoute, createStop, listRoutes, updateRoute } from '@/api/routes';
+import { Route, Stop, createRoute, createStop, listRoutes, updateRoute, deleteRoute, deleteStop } from '@/api/routes';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoading } from '@/components/ui/Loading';
+import { DeleteConfirmationDialog } from '@/components/ui/DeleteConfirmationDialog';
 import {
   MapPinIcon,
   PlusIcon,
@@ -14,6 +15,7 @@ import {
   XCircleIcon,
   ClockIcon,
   GlobeAltIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 export default function RoutesPage() {
@@ -33,6 +35,18 @@ export default function RoutesPage() {
     longitude: string;
     sequence_order: string;
   }>({ route_id: 0, name: '', latitude: '', longitude: '', sequence_order: '1' });
+
+  const [deleteDialog, setDeleteDialog] = useState<{ 
+    isOpen: boolean; 
+    type: 'route' | 'stop' | null;
+    item: Route | Stop | null; 
+    loading: boolean 
+  }>({
+    isOpen: false,
+    type: null,
+    item: null,
+    loading: false
+  });
 
   const load = async () => {
     try {
@@ -87,6 +101,32 @@ export default function RoutesPage() {
     } catch (e: any) {
       alert(e?.message || 'Failed to update route');
     }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteDialog.item || !deleteDialog.type) return;
+    
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      if (deleteDialog.type === 'route') {
+        await deleteRoute((deleteDialog.item as Route).id);
+      } else if (deleteDialog.type === 'stop') {
+        await deleteStop((deleteDialog.item as Stop).id);
+      }
+      await load();
+      setDeleteDialog({ isOpen: false, type: null, item: null, loading: false });
+    } catch (e: any) {
+      alert(e?.message || `Failed to delete ${deleteDialog.type}`);
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const openDeleteDialog = (type: 'route' | 'stop', item: Route | Stop) => {
+    setDeleteDialog({ isOpen: true, type, item, loading: false });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, type: null, item: null, loading: false });
   };
 
   if (loading) return <PageLoading message="Loading routes..." />;
@@ -240,6 +280,14 @@ export default function RoutesPage() {
                                   {stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)}
                                 </p>
                               </div>
+                              <Button
+                                onClick={() => openDeleteDialog('stop', stop)}
+                                variant="destructive"
+                                size="sm"
+                                className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 h-6 w-6 p-0"
+                              >
+                                <TrashIcon className="h-3 w-3" />
+                              </Button>
                             </div>
                           ))}
                       </div>
@@ -253,6 +301,14 @@ export default function RoutesPage() {
                       size="sm"
                     >
                       {route.is_active ? 'Deactivate' : 'Activate'}
+                    </Button>
+                    <Button
+                      onClick={() => openDeleteDialog('route', route)}
+                      variant="destructive"
+                      size="sm"
+                      className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                    >
+                      <TrashIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -440,6 +496,17 @@ export default function RoutesPage() {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDelete}
+        title={`Delete ${deleteDialog.type === 'route' ? 'Route' : 'Stop'}`}
+        message={`Are you sure you want to delete this ${deleteDialog.type}`}
+        itemName={deleteDialog.item ? (deleteDialog.type === 'route' ? (deleteDialog.item as Route).name : (deleteDialog.item as Stop).name) : ''}
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }

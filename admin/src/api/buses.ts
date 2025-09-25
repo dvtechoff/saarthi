@@ -17,4 +17,9 @@ export async function updateBus(busId: number, input: Partial<{ route_id: number
   return res.data;
 }
 
+export async function deleteBus(busId: number): Promise<{ message: string }> {
+  const res = await api.delete(`/authority/buses/${busId}`);
+  return res.data;
+}
+
 

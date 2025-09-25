@@ -17,4 +17,9 @@ export async function updateUser(userId: number, input: Partial<{ role: string; 
   return res.data;
 }
 
+export async function deleteUser(userId: number): Promise<{ message: string }> {
+  const res = await api.delete(`/authority/users/${userId}`);
+  return res.data;
+}
+
 

@@ -1,0 +1,31 @@
+id,name,number,direction,route_type,frequency
+lucknow_airport_out,Lucknow Airport Express,101,outbound,express,15
+lucknow_airport_in,Lucknow Airport Express,101,inbound,express,15
+lucknow_university_out,University Line,102,outbound,city,12
+lucknow_university_in,University Line,102,inbound,city,12
+lucknow_medical_out,Medical College Route,103,outbound,local,20
+lucknow_medical_in,Medical College Route,103,inbound,local,20
+lucknow_circular_cw,Lucknow Circular,104,clockwise,city,25
+lucknow_circular_ccw,Lucknow Circular,104,counter_clockwise,city,25
+kanpur_iit_out,Kanpur IIT Express,201,outbound,express,18
+kanpur_iit_in,Kanpur IIT Express,201,inbound,express,18
+kanpur_industrial_out,Industrial Area Line,202,outbound,city,15
+kanpur_industrial_in,Industrial Area Line,202,inbound,city,15
+varanasi_bhu_out,BHU Campus Line,301,outbound,city,20
+varanasi_bhu_in,BHU Campus Line,301,inbound,city,20
+varanasi_ghat_out,Ghat Darshan Route,302,outbound,local,30
+varanasi_ghat_in,Ghat Darshan Route,302,inbound,local,30
+varanasi_airport_out,Varanasi Airport Line,303,outbound,express,45
+varanasi_airport_in,Varanasi Airport Line,303,inbound,express,45
+agra_taj_out,Taj Mahal Express,401,outbound,express,10
+agra_taj_in,Taj Mahal Express,401,inbound,express,10
+agra_fatehpur_out,Fatehpur Sikri Route,402,outbound,intercity,60
+agra_fatehpur_in,Fatehpur Sikri Route,402,inbound,intercity,60
+allahabad_sangam_out,Sangam Darshan,501,outbound,local,25
+allahabad_sangam_in,Sangam Darshan,501,inbound,local,25
+allahabad_university_out,University Express,502,outbound,city,15
+allahabad_university_in,University Express,502,inbound,city,15
+meerut_cantonment_out,Cantonment Line,601,outbound,city,20
+meerut_cantonment_in,Cantonment Line,601,inbound,city,20
+meerut_industrial_out,Industrial Connect,602,outbound,city,18
+meerut_industrial_in,Industrial Connect,602,inbound,city,18

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listTrips, type Trip } from '@/api/trips';
+import { listTrips, deleteTrip, type Trip } from '@/api/trips';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { PageLoading } from '@/components/ui/Loading';
+import { DeleteConfirmationDialog } from '@/components/ui/DeleteConfirmationDialog';
 import {
   ClockIcon,
   MagnifyingGlassIcon,
@@ -16,6 +17,8 @@ import {
   CalendarIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
+  TrashIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
 
 export default function TripsPage() {
@@ -26,6 +29,11 @@ export default function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [driverId, setDriverId] = useState<string>('');
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; trip: Trip | null; loading: boolean }>({
+    isOpen: false,
+    trip: null,
+    loading: false
+  });
 
   const load = async () => {
     try {
@@ -85,6 +93,28 @@ export default function TripsPage() {
 
   const formatDistance = (distance: number) => {
     return distance ? `${distance.toFixed(1)} km` : 'N/A';
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!deleteDialog.trip) return;
+    
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      await deleteTrip(deleteDialog.trip.id);
+      await load();
+      setDeleteDialog({ isOpen: false, trip: null, loading: false });
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete trip');
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const openDeleteDialog = (trip: Trip) => {
+    setDeleteDialog({ isOpen: true, trip, loading: false });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, trip: null, loading: false });
   };
 
   if (loading) return <PageLoading message="Loading trips..." />;
@@ -229,6 +259,7 @@ export default function TripsPage() {
                   <TableHead>Schedule</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Distance</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,6 +317,30 @@ export default function TripsPage() {
                         <span className="font-medium">{formatDistance(trip.distance)}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        {trip.status === 'active' || trip.status === 'in_progress' ? (
+                          <Button
+                            onClick={() => openDeleteDialog(trip)}
+                            variant="destructive"
+                            size="sm"
+                            className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200"
+                          >
+                            <StopIcon className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => openDeleteDialog(trip)}
+                            variant="destructive"
+                            size="sm"
+                            className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </motion.tr>
                 ))}
               </TableBody>
@@ -303,6 +358,17 @@ export default function TripsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteTrip}
+        title={deleteDialog.trip?.status === 'active' || deleteDialog.trip?.status === 'in_progress' ? 'Cancel Trip' : 'Delete Trip'}
+        message={deleteDialog.trip?.status === 'active' || deleteDialog.trip?.status === 'in_progress' ? 'Are you sure you want to cancel' : 'Are you sure you want to delete'}
+        itemName={deleteDialog.trip?.tripId}
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }

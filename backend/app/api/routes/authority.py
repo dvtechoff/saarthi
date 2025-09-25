@@ -436,3 +436,163 @@ def update_user(
     db.commit()
     db.refresh(u)
     return UserOut(id=u.id, email=u.email, role=u.role.value, name=u.name, phone=u.phone, is_active=u.is_active)
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a user account"""
+    if current_user.role.value != "authority":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Authority role required.")
+    
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent deleting own account
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    # Check if user has active trips or assignments (optional safety check)
+    active_trips = db.query(Trip).filter(Trip.driver_id == user_id, Trip.status.in_(["active", "in_progress"])).count()
+    if active_trips > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete user with active trips. Please complete or cancel active trips first.")
+    
+    try:
+        # Delete related records first
+        db.query(DriverRouteAssignment).filter(DriverRouteAssignment.driver_id == user_id).delete()
+        
+        # Delete the user
+        db.delete(user)
+        db.commit()
+        return {"message": "User deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+
+@router.delete("/buses/{bus_id}")
+def delete_bus(
+    bus_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a bus from the fleet"""
+    if current_user.role.value != "authority":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Authority role required.")
+    
+    # Check if bus exists
+    bus = db.query(Bus).filter(Bus.id == bus_id).first()
+    if not bus:
+        raise HTTPException(status_code=404, detail="Bus not found")
+    
+    # Check if bus has active trips
+    active_trips = db.query(Trip).filter(Trip.bus_id == bus_id, Trip.status.in_(["active", "in_progress"])).count()
+    if active_trips > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete bus with active trips. Please complete or cancel active trips first.")
+    
+    try:
+        # Delete the bus (trips will be handled by CASCADE or kept for historical data)
+        db.delete(bus)
+        db.commit()
+        return {"message": "Bus deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete bus: {str(e)}")
+
+@router.delete("/routes/{route_id}")
+def delete_route(
+    route_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a route and its stops"""
+    if current_user.role.value != "authority":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Authority role required.")
+    
+    # Check if route exists
+    route = db.query(Route).filter(Route.id == route_id).first()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route not found")
+    
+    # Check if route has active trips
+    active_trips = db.query(Trip).filter(Trip.route_id == route_id, Trip.status.in_(["active", "in_progress"])).count()
+    if active_trips > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete route with active trips. Please complete or cancel active trips first.")
+    
+    # Check if route has assigned buses
+    assigned_buses = db.query(Bus).filter(Bus.route_id == route_id).count()
+    if assigned_buses > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete route with assigned buses. Please unassign buses first.")
+    
+    try:
+        # Delete route stops first
+        db.query(Stop).filter(Stop.route_id == route_id).delete()
+        
+        # Delete driver route assignments
+        db.query(DriverRouteAssignment).filter(DriverRouteAssignment.route_id == route_id).delete()
+        
+        # Delete the route
+        db.delete(route)
+        db.commit()
+        return {"message": "Route and associated stops deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete route: {str(e)}")
+
+@router.delete("/stops/{stop_id}")
+def delete_stop(
+    stop_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a stop from a route"""
+    if current_user.role.value != "authority":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Authority role required.")
+    
+    # Check if stop exists
+    stop = db.query(Stop).filter(Stop.id == stop_id).first()
+    if not stop:
+        raise HTTPException(status_code=404, detail="Stop not found")
+    
+    try:
+        # Delete the stop
+        db.delete(stop)
+        db.commit()
+        return {"message": "Stop deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete stop: {str(e)}")
+
+@router.delete("/trips/{trip_id}")
+def delete_trip(
+    trip_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete/Cancel a trip"""
+    if current_user.role.value != "authority":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Authority role required.")
+    
+    # Check if trip exists
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    # If trip is active, mark as cancelled instead of deleting
+    if trip.status in ["active", "in_progress"]:
+        trip.status = "cancelled"
+        trip.end_time = datetime.utcnow()
+        db.commit()
+        return {"message": "Active trip cancelled successfully"}
+    
+    try:
+        # Delete completed/cancelled trips
+        db.delete(trip)
+        db.commit()
+        return {"message": "Trip deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete trip: {str(e)}")

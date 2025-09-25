@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { createUser, listUsers, updateUser, type User } from '@/api/users';
+import { createUser, listUsers, updateUser, deleteUser, type User } from '@/api/users';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { PageLoading } from '@/components/ui/Loading';
+import { DeleteConfirmationDialog } from '@/components/ui/DeleteConfirmationDialog';
 import {
   UserGroupIcon,
   PlusIcon,
@@ -15,7 +16,9 @@ import {
   EnvelopeIcon,
   CheckCircleIcon,
   XCircleIcon,
-  FunnelIcon
+  FunnelIcon,
+  TrashIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
 
 export default function UsersPage() {
@@ -35,6 +38,11 @@ export default function UsersPage() {
     phone?: string;
   }>({ email: '', password: '', role: 'commuter' });
   const [saving, setSaving] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; user: User | null; loading: boolean }>({
+    isOpen: false,
+    user: null,
+    loading: false
+  });
 
   const load = async () => {
     try {
@@ -100,6 +108,28 @@ export default function UsersPage() {
     } catch (e: any) {
       alert(e?.message || 'Failed to update user');
     }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteDialog.user) return;
+    
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      await deleteUser(deleteDialog.user.id);
+      await load();
+      setDeleteDialog({ isOpen: false, user: null, loading: false });
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete user');
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const openDeleteDialog = (user: User) => {
+    setDeleteDialog({ isOpen: true, user, loading: false });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, user: null, loading: false });
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -305,13 +335,23 @@ export default function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      onClick={() => toggleActive(user)}
-                      variant={user.is_active ? 'destructive' : 'success'}
-                      size="sm"
-                    >
-                      {user.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
+                    <div className="flex items-center justify-end space-x-2">
+                      <Button
+                        onClick={() => toggleActive(user)}
+                        variant={user.is_active ? 'destructive' : 'success'}
+                        size="sm"
+                      >
+                        {user.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        onClick={() => openDeleteDialog(user)}
+                        variant="destructive"
+                        size="sm"
+                        className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </motion.tr>
               ))}
@@ -421,6 +461,17 @@ export default function UsersPage() {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteUser}
+        title="Delete User"
+        message="Are you sure you want to delete"
+        itemName={deleteDialog.user ? `${deleteDialog.user.name || deleteDialog.user.email}` : ''}
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }

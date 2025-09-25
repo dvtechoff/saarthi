@@ -7,4 +7,9 @@ export async function listTrips(driverId?: number): Promise<Trip[]> {
   return res.data;
 }
 
+export async function deleteTrip(tripId: number): Promise<{ message: string }> {
+  const res = await api.delete(`/authority/trips/${tripId}`);
+  return res.data;
+}
+
 

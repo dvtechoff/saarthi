@@ -28,4 +28,14 @@ export async function updateStop(id:number, input: Partial<{ name:string; latitu
   return res.data; 
 }
 
+export async function deleteRoute(routeId: number): Promise<{ message: string }> {
+  const res = await api.delete(`/authority/routes/${routeId}`);
+  return res.data;
+}
+
+export async function deleteStop(stopId: number): Promise<{ message: string }> {
+  const res = await api.delete(`/authority/stops/${stopId}`);
+  return res.data;
+}
+
 

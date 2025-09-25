@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bus, createBus, listBuses, updateBus } from '@/api/buses';
+import { Bus, createBus, listBuses, updateBus, deleteBus } from '@/api/buses';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { PageLoading } from '@/components/ui/Loading';
+import { DeleteConfirmationDialog } from '@/components/ui/DeleteConfirmationDialog';
 import {
   TruckIcon,
   PlusIcon,
@@ -15,6 +16,7 @@ import {
   XCircleIcon,
   MapPinIcon,
   WrenchScrewdriverIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 export default function BusesPage() {
@@ -30,6 +32,11 @@ export default function BusesPage() {
     route_id: null,
   });
   const [saving, setSaving] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; bus: Bus | null; loading: boolean }>({
+    isOpen: false,
+    bus: null,
+    loading: false
+  });
 
   const load = async () => {
     try {
@@ -90,6 +97,28 @@ export default function BusesPage() {
     } catch (e: any) {
       alert(e?.message || 'Failed to update bus');
     }
+  };
+
+  const handleDeleteBus = async () => {
+    if (!deleteDialog.bus) return;
+    
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      await deleteBus(deleteDialog.bus.id);
+      await load();
+      setDeleteDialog({ isOpen: false, bus: null, loading: false });
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete bus');
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const openDeleteDialog = (bus: Bus) => {
+    setDeleteDialog({ isOpen: true, bus, loading: false });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, bus: null, loading: false });
   };
 
   if (loading) return <PageLoading message="Loading buses..." />;
@@ -258,13 +287,21 @@ export default function BusesPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end space-x-2">
                   <Button
                     onClick={() => toggleActive(bus)}
                     variant={bus.is_active ? 'destructive' : 'success'}
                     size="sm"
                   >
                     {bus.is_active ? 'Take Offline' : 'Bring Online'}
+                  </Button>
+                  <Button
+                    onClick={() => openDeleteDialog(bus)}
+                    variant="destructive"
+                    size="sm"
+                    className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                  >
+                    <TrashIcon className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -358,6 +395,17 @@ export default function BusesPage() {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteBus}
+        title="Delete Bus"
+        message="Are you sure you want to delete bus"
+        itemName={deleteDialog.bus?.bus_number}
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }

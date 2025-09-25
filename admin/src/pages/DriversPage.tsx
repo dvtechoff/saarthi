@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listUsers, updateUser, type User } from '@/api/users';
+import { listUsers, updateUser, deleteUser, type User } from '@/api/users';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { PageLoading } from '@/components/ui/Loading';
+import { DeleteConfirmationDialog } from '@/components/ui/DeleteConfirmationDialog';
 import {
   UserCircleIcon,
   MagnifyingGlassIcon,
@@ -19,6 +20,8 @@ import {
   ClockIcon,
   StarIcon,
   MapIcon,
+  TrashIcon,
+  CogIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DriversPage() {
@@ -29,6 +32,11 @@ export default function DriversPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; driver: User | null; loading: boolean }>({
+    isOpen: false,
+    driver: null,
+    loading: false
+  });
 
   const drivers = useMemo(() => users.filter(u => u.role === 'driver'), [users]);
 
@@ -76,6 +84,28 @@ export default function DriversPage() {
     } catch (e: any) {
       alert(e?.message || 'Failed to update driver status');
     }
+  };
+
+  const handleDeleteDriver = async () => {
+    if (!deleteDialog.driver) return;
+    
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      await deleteUser(deleteDialog.driver.id);
+      await load();
+      setDeleteDialog({ isOpen: false, driver: null, loading: false });
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete driver');
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const openDeleteDialog = (driver: User) => {
+    setDeleteDialog({ isOpen: true, driver, loading: false });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, driver: null, loading: false });
   };
 
   if (loading) return <PageLoading message="Loading drivers..." />;
@@ -267,11 +297,27 @@ export default function DriversPage() {
 
                 <div className="flex justify-end space-x-2">
                   <Button
+                    onClick={() => navigate(`/drivers/${driver.id}/assign`)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <CogIcon className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                  <Button
                     onClick={() => toggleActive(driver)}
                     variant={driver.is_active ? 'destructive' : 'success'}
                     size="sm"
                   >
                     {driver.is_active ? 'Set Inactive' : 'Set Active'}
+                  </Button>
+                  <Button
+                    onClick={() => openDeleteDialog(driver)}
+                    variant="destructive"
+                    size="sm"
+                    className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                  >
+                    <TrashIcon className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -293,6 +339,16 @@ export default function DriversPage() {
           </CardContent>
         </Card>
       )}
+
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteDriver}
+        loading={deleteDialog.loading}
+        title="Delete Driver"
+        message={`Are you sure you want to delete this driver? This action cannot be undone.`}
+        itemName={deleteDialog.driver?.name || deleteDialog.driver?.email || 'Unknown Driver'}
+      />
     </div>
   );
 }

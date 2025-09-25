@@ -13,8 +13,8 @@ export const API_CONFIG = {
   WS_URL: 'ws://localhost:8000',
   
   // For Android emulator, use 10.0.2.2 instead of localhost
-  ANDROID_BASE_URL: 'http://10.0.2.2:8000',
-  ANDROID_WS_URL: 'ws://10.0.2.2:8000',
+  ANDROID_BASE_URL: 'https://saarthi-track.up.railway.app',
+  ANDROID_WS_URL: 'wss://saarthi-track.up.railway.app',
   
   // For physical device, use Railway backend (Production)
   DEVICE_BASE_URL: 'https://saarthi-track.up.railway.app',
