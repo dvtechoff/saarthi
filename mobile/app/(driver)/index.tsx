@@ -14,6 +14,7 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { apiEndpoints } from '../../services/api';
+import { getRoadAwareRoute } from '../../services/routeService';
 import { wsService } from '../../services/websocket';
 import { AppDispatch, RootState } from '../../store';
 import { Route, BusStop, setRoutes, setSelectedRoute } from '../../store/slices/busSlice';
@@ -96,7 +97,7 @@ export default function DriverDashboard() {
               dispatch(setSelectedRoute(route));
               setCurrentStopIndex(0);
               setNextStop(route.stops?.[0] || null);
-              setRouteDirections(generateRouteDirections(route));
+              await computeRoutePolyline(route);
               updateMapRegionForRoute(route);
             }
           }
@@ -212,9 +213,8 @@ export default function DriverDashboard() {
       setRouteProgress(0);
       setNextStop(selectedRoute.stops[0]);
       
-      // Generate route directions
-      const directions = generateRouteDirections(selectedRoute);
-      setRouteDirections(directions);
+      // Generate road-aware route directions via OpenRouteService
+      await computeRoutePolyline(selectedRoute);
       
       // Update map to show full route
       updateMapRegionForRoute(selectedRoute);
@@ -361,6 +361,8 @@ export default function DriverDashboard() {
     updateMapRegionForRoute(route);
     setCurrentStopIndex(0);
     setRouteProgress(0);
+    // Precompute preview polyline (optional)
+    computeRoutePolyline(route).catch(() => {});
     
     // Notify commuters about route change
     wsService.emit('driver_route_changed', {
@@ -421,6 +423,21 @@ export default function DriverDashboard() {
       }
     }
     return directions;
+  };
+
+  // Build road-following polyline for a route using OpenRouteService
+  const computeRoutePolyline = async (route: Route) => {
+    try {
+      if (!route?.stops || route.stops.length < 2) {
+        setRouteDirections([]);
+        return;
+      }
+      const stops = route.stops.map((s: any) => ({ latitude: s.latitude, longitude: s.longitude }));
+      const points = await getRoadAwareRoute(stops);
+      setRouteDirections(points);
+    } catch (e) {
+      // Keep existing directions if ORS fails silently
+    }
   };
 
   const handleReportDelay = () => {
@@ -688,7 +705,6 @@ export default function DriverDashboard() {
                   coordinates={routeDirections}
                   strokeColor="#EC4899"
                   strokeWidth={6}
-                  lineDashPattern={[5, 5]}
                 />
               )}
               

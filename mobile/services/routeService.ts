@@ -1,12 +1,8 @@
-import { Client } from '@googlemaps/google-maps-services-js';
 // OpenRouteService integration (uses public fetch)
 
-// You can get a free API key from Google Cloud Console
-// For now, we'll use a mock service that creates realistic routes
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with actual API key
+// You can get a free API key from OpenRouteService (https://openrouteservice.org/dev/#/signup)
+// Set it in your Expo env as EXPO_PUBLIC_ORS_API_KEY
 const ORS_API_KEY = process.env.EXPO_PUBLIC_ORS_API_KEY || '';
-
-const client = new Client({});
 
 export interface RoutePoint {
   latitude: number;

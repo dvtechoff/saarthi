@@ -58,44 +58,9 @@ def get_nearby_buses(
         Route.is_active == True
     ).all()
     
-    # If no active buses found, return some demo data for testing
+    # Strict: if none active, return empty list (avoid demo duplicates in production)
     if not buses:
-        # Check if we have any buses at all (even inactive ones)
-        all_buses = db.query(Bus).join(Route, Bus.route_id == Route.id).filter(
-            Bus.current_latitude.isnot(None),
-            Bus.current_longitude.isnot(None),
-            Route.is_active == True
-        ).limit(5).all()
-        
-        if all_buses:
-            # Use existing buses but show them as active for demo
-            buses = all_buses
-        else:
-            # Return demo data if no buses exist in database
-            return [
-                BusResponse(
-                    id=1,
-                    routeName="Demo Route A",
-                    currentStop="Central Station",
-                    nextStop="University Square",
-                    latitude=lat + 0.005,
-                    longitude=lng + 0.005,
-                    speed=25.0,
-                    occupancy="medium",
-                    lastUpdated=datetime.utcnow().isoformat()
-                ),
-                BusResponse(
-                    id=2,
-                    routeName="Demo Route B", 
-                    currentStop="Shopping Mall",
-                    nextStop="City Center",
-                    latitude=lat - 0.003,
-                    longitude=lng + 0.008,
-                    speed=30.0,
-                    occupancy="low",
-                    lastUpdated=datetime.utcnow().isoformat()
-                )
-            ]
+        return []
     
     result = []
     for bus in buses:
