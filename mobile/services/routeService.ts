@@ -1,8 +1,10 @@
 import { Client } from '@googlemaps/google-maps-services-js';
+// OpenRouteService integration (uses public fetch)
 
 // You can get a free API key from Google Cloud Console
 // For now, we'll use a mock service that creates realistic routes
 const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with actual API key
+const ORS_API_KEY = process.env.EXPO_PUBLIC_ORS_API_KEY || '';
 
 const client = new Client({});
 
@@ -243,4 +245,48 @@ export class GoogleRouteService {
 
     return points;
   }
+}
+
+// OpenRouteService (free tier) – road-following directions without Google
+export class OpenRouteService {
+  static async getDirections(stops: RoutePoint[]): Promise<RoutePoint[]> {
+    try {
+      if (!Array.isArray(stops) || stops.length < 2) return [];
+      if (!ORS_API_KEY) throw new Error('ORS API key missing');
+
+      // ORS expects [lng, lat]
+      const coordinates = stops.map((s) => [s.longitude, s.latitude]);
+
+      const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': ORS_API_KEY,
+        },
+        body: JSON.stringify({ coordinates }),
+      });
+
+      if (!res.ok) throw new Error(`ORS error ${res.status}`);
+      const data = await res.json();
+      const coords: [number, number][] | undefined = data?.features?.[0]?.geometry?.coordinates;
+      if (!coords || coords.length === 0) return [];
+
+      return coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+    } catch (e) {
+      // Fallback to realistic synthetic route
+      return RouteService.generateRealisticRoute(stops);
+    }
+  }
+}
+
+// Helper that chooses ORS when available, otherwise falls back to Google (if key) or synthetic
+export async function getRoadAwareRoute(stops: RoutePoint[]): Promise<RoutePoint[]> {
+  if (ORS_API_KEY) {
+    return OpenRouteService.getDirections(stops);
+  }
+  // If Google key exists, try Google; otherwise fallback to synthetic
+  if (GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY') {
+    return GoogleRouteService.getDirections(stops);
+  }
+  return RouteService.generateRealisticRoute(stops);
 }
